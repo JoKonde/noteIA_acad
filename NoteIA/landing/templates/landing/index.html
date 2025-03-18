@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NoteIA - Prise de Notes Intelligente</title>
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-light bg-light">
+        <a class="navbar-brand" href="#">NoteIA</a>
+        <div class="collapse navbar-collapse">
+            <ul class="navbar-nav ml-auto">
+                <li class="nav-item">
+                    <a class="nav-link" href="{% url 'login' %}">Connexion</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{% url 'signup' %}">Inscription</a>
+                </li>
+            </ul>
+        </div>
+    </nav>
+
+    <div class="container mt-5">
+        <h1>NoteIA - Prise de Notes Intelligente</h1>
+        <p>Transformez votre manière de prendre des notes avec NoteIA. Utilisez des technologies avancées pour la prise de notes en texte, OCR, audio, et bien plus encore.</p>
+        
+        <div class="row mt-4">
+            <div class="col-md-4">
+                <h2>Prise de Notes Multimodale</h2>
+                <p>Prenez des notes en texte, via OCR, ou en audio. NoteIA s'adapte à vos besoins.</p>
+            </div>
+            <div class="col-md-4">
+                <h2>Résumé Intelligent</h2>
+                <p>Générez des résumés automatiques de vos notes grâce à l'API DeepSeek (Transformers).</p>
+            </div>
+            <div class="col-md-4">
+                <h2>Catégorisation Automatique</h2>
+                <p>Organisez vos notes par catégories en fonction de leur contenu.</p>
+            </div>
+        </div>
+
+        <div class="text-center mt-4">
+            <a href="{% url 'signup' %}" class="btn btn-primary btn-lg">Commencer Maintenant</a>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.2/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+</body>
+</html>
