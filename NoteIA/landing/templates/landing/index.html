@@ -1,11 +1,11 @@
 {% load static %}
 <!DOCTYPE html>
-<html lang="en">
+<html lang="fr">
 
 <head>
   <meta charset="utf-8">
   <meta content="width=device-width, initial-scale=1.0" name="viewport">
-  <title>Index - iLanding Bootstrap Template</title>
+  <title>NoteIA - Des Notes Intelligentes</title>
   <meta name="description" content="">
   <meta name="keywords" content="">
 
@@ -27,14 +27,6 @@
 
   <!-- Main CSS File -->
   <link href="{% static 'css/main.css' %}" rel="stylesheet">
-
-  <!-- =======================================================
-  * Template Name: iLanding
-  * Template URL: https://bootstrapmade.com/ilanding-bootstrap-landing-page-template/
-  * Updated: Nov 12 2024 with Bootstrap v5.3.3
-  * Author: BootstrapMade.com
-  * License: https://bootstrapmade.com/license/
-  ======================================================== -->
 </head>
 
 <body class="index-page">
@@ -45,16 +37,16 @@
       <a href="{% url 'index' %}" class="logo d-flex align-items-center me-auto me-xl-0">
         <!-- Utilisation d'une image comme logo -->
         <img src="{% static 'img/logo.png' %}" alt="Logo">
-        <h1 class="sitename">iLanding</h1>
+        <h1 class="sitename">NoteIA</h1>
     </a>
 
       <nav id="navmenu" class="navmenu">
         <ul>
-          <li><a href="#hero" class="active">Home</a></li>
-          <li><a href="#about">About</a></li>
-          <li><a href="#features">Features</a></li>
-          <li><a href="#services">Services</a></li>
-          <li><a href="#pricing">Pricing</a></li>
+          <li><a href="#hero" class="active">Acceuil</a></li>
+          <li><a href="#about">A Propos</a></li>
+          <li><a href="#features">Options</a></li>
+          <li><a href="#services">Nos Services</a></li>
+          <li><a href="#pricing">Tarif</a></li>
           <li class="dropdown"><a href="#"><span>Dropdown</span> <i class="bi bi-chevron-down toggle-dropdown"></i></a>
             <ul>
               <li><a href="#">Dropdown 1</a></li>
@@ -77,7 +69,8 @@
         <i class="mobile-nav-toggle d-xl-none bi bi-list"></i>
       </nav>
 
-      <a class="btn-getstarted" href="{% url 'index' %}#about">Get Started</a>
+      <a class="btn-getstarted" href="{% url 'login' %}">Connexion</a>
+      <a class="btn btn-secondary rounded-pill px-4" href="{% url 'signup' %}">Créer compte</a>
 
     </div>
   </header>
@@ -94,25 +87,27 @@
             <div class="hero-content" data-aos="fade-up" data-aos-delay="200">
               <div class="company-badge mb-4">
                 <i class="bi bi-gear-fill me-2"></i>
-                Working for your success
+                Description
               </div>
 
               <h1 class="mb-4">
-                Maecenas Vitae <br>
-                Consectetur Led <br>
-                <span class="accent-text">Vestibulum Ante</span>
-              </h1>
-
-              <p class="mb-4 mb-md-5">
-                Nullam quis ante. Etiam sit amet orci eget eros faucibus tincidunt.
-                Duis leo. Sed fringilla mauris sit amet nibh. Donec sodales sagittis magna.
-              </p>
+                Transformez votre prise de notes <br>
+                avec une intelligence artificielle <br>
+                <span class="accent-text">qui comprend votre pensée</span>
+            </h1>
+            
+            <p class="mb-4 mb-md-5">
+                NoteIA révolutionne votre productivité grâce à une synthèse intelligente de vos notes textuelles, 
+                audio et visuelles. Notre solution combine OCR avancé et traitement automatique du langage naturel 
+                pour classer automatiquement vos contenus, générer des résumés pertinents et vous préparer des 
+                sessions de révision optimisées. Libérez le potentiel de vos idées avec NoteIA.
+            </p>
 
               <div class="hero-buttons">
-                <a href="#about" class="btn btn-primary me-0 me-sm-2 mx-1">Get Started</a>
+                <a href="#about" class="btn btn-primary me-0 me-sm-2 mx-1">Connexion</a>
                 <a href="https://www.youtube.com/watch?v=Y7f98aduVJ8" class="btn btn-link mt-2 mt-sm-0 glightbox">
                   <i class="bi bi-play-circle me-1"></i>
-                  Play Video
+                  Créer un compte
                 </a>
               </div>
             </div>
