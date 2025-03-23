@@ -1,0 +1,27 @@
+<!-- landing/templates/500.html -->
+{% load static %}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Erreur Serveur - NoteIA</title>
+    <style>
+        body { 
+            background: #2A4B7E;
+            color: white;
+            text-align: center;
+            padding: 50px;
+            font-family: Arial;
+        }
+        .error-code { font-size: 100px; }
+        .robot { width: 200px; }
+    </style>
+</head>
+<body>
+    <h1 class="error-code">500</h1>
+    <h2>Oups! Quelque chose s'est mal passé...</h2>
+    <img src="{% static 'img/robot-error.png' %}" class="robot" alt="Robot triste">
+    <p>Notre équipe technique a été alertée. Veuillez réessayer plus tard.</p>
+    <a href="/" style="color: #87CEEB;">Retour à l'accueil</a>
+</body>
+</html>
