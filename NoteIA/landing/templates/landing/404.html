@@ -1,0 +1,169 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Page Introuvable - NoteIA</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-blue: #2A4B7E;
+            --accent-blue: #87CEEB;
+            --space-black: #0A0F1F;
+        }
+
+        body {
+            margin: 0;
+            background: var(--space-black);
+            font-family: 'Poppins', sans-serif;
+            overflow: hidden;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+        }
+
+        .stars {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background: 
+                radial-gradient(2px 2px at 20% 30%, #fff 50%, transparent 100%),
+                radial-gradient(2px 2px at 80% 70%, #fff 50%, transparent 100%);
+            animation: twinkle 3s infinite alternate;
+        }
+
+        .container {
+            position: relative;
+            z-index: 1;
+            text-align: center;
+            padding: 2rem;
+            background: rgba(10, 15, 31, 0.9);
+            border-radius: 20px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 0 50px rgba(135, 206, 235, 0.3);
+            transform-style: preserve-3d;
+        }
+
+        .error-code {
+            font-size: 15rem;
+            font-weight: 700;
+            background: linear-gradient(45deg, var(--accent-blue), var(--primary-blue));
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            text-shadow: 0 0 30px rgba(135, 206, 235, 0.4);
+            margin: 0;
+            animation: glitch 2s infinite;
+        }
+
+        .message {
+            color: white;
+            font-size: 1.5rem;
+            margin: 1rem 0 2rem;
+            position: relative;
+        }
+
+        .astronaut {
+            width: 200px;
+            position: absolute;
+            animation: float 6s ease-in-out infinite;
+            filter: drop-shadow(0 0 20px var(--accent-blue));
+        }
+
+        .home-btn {
+            padding: 1rem 2.5rem;
+            font-size: 1.1rem;
+            background: linear-gradient(45deg, var(--primary-blue), var(--accent-blue));
+            border: none;
+            border-radius: 50px;
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .home-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 30px rgba(135, 206, 235, 0.5);
+        }
+
+        .home-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(
+                90deg,
+                transparent,
+                rgba(255, 255, 255, 0.2),
+                transparent
+            );
+            transition: 0.5s;
+        }
+
+        .home-btn:hover::before {
+            left: 100%;
+        }
+
+        /* Animations */
+        @keyframes glitch {
+            0%, 100% { transform: translate(0); }
+            20% { transform: translate(-2px, 2px); }
+            40% { transform: translate(-2px, -2px); }
+            60% { transform: translate(2px, 2px); }
+            80% { transform: translate(2px, -2px); }
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0) rotate(5deg); }
+            50% { transform: translateY(-20px) rotate(-5deg); }
+        }
+
+        @keyframes twinkle {
+            from { opacity: 0.3; }
+            to { opacity: 1; }
+        }
+
+        /* Effet de profondeur spatiale */
+        .container::before {
+            content: '';
+            position: absolute;
+            top: -2px;
+            left: -2px;
+            right: -2px;
+            bottom: -2px;
+            background: linear-gradient(45deg, var(--accent-blue), var(--primary-blue), #0A0F1F);
+            z-index: -1;
+            animation: rotate 20s linear infinite;
+        }
+
+        @keyframes rotate {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @media (max-width: 768px) {
+            .error-code { font-size: 10rem; }
+            .astronaut { width: 150px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="stars"></div>
+    
+    <img src="{% static 'img/astronaut.png' %}" class="astronaut" alt="Astronaute" style="top: 20%; left: 15%">
+    <img src="{% static 'img/astronaut.png' %}" class="astronaut" alt="Astronaute" style="top: 70%; left: 80%; animation-delay: -3s">
+
+    <div class="container">
+        <h1 class="error-code">404</h1>
+        <p class="message">Oups! Il semble que vous vous soyez égaré dans l'espace...</p>
+        <button class="home-btn" onclick="window.location.href='/'">Retour à la base</button>
+    </div>
+</body>
+</html>
