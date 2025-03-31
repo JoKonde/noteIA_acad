@@ -76,20 +76,23 @@
 <body>
   <div class="signup-container">
     <h2>Inscription à NoteIA</h2>
-    <form>
-      <input type="text" placeholder="Nom" required>
-      <input type="text" placeholder="Postnom" required>
-      <input type="text" placeholder="Prénom" required>
-      <select required>
+    <form method="POST">
+      {% csrf_token %}
+      <input type="text" name="nom" placeholder="Nom" required>
+      <input type="text" name="postnom" placeholder="Postnom" required>
+      <input type="text" name="prenom" placeholder="Prénom" required>
+      <select name="sexe" required>
         <option value="" disabled selected>Sélectionnez votre sexe</option>
         <option value="M">Masculin</option>
         <option value="F">Féminin</option>
       </select>
-      <input type="tel" placeholder="Téléphone" required>
-      <input type="text" placeholder="Nom d'utilisateur" required>
-      <input type="password" placeholder="Mot de passe" required>
+      <input type="tel" name="tel" placeholder="Téléphone" required>
+      <input type="text" placeholder="Nom d'utilisateur" disabled value="Généré automatiquement">
+      <input type="password" name="password" placeholder="Mot de passe" required>
+      <textarea name="adresse" cols="30" rows="5" placeholder="Adresse..." required></textarea>
       <button type="submit">S'inscrire</button>
     </form>
+    
     <p>Vous avez déjà un compte ? <a href="{% url 'login' %}">Connectez-vous ici</a></p>
   </div>
 </body>
