@@ -10,3 +10,6 @@ def login(request):
 
 def signup(request):
     return render(request, 'landing/signup.html')
+
+def dashboard(request):
+    return render(request, 'landing/dashboard.html')
