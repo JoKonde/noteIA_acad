@@ -17,6 +17,20 @@ def logout(request):
     messages.success(request, "Vous êtes déconnecté.")
     return response
 
+def account_success(request):
+    username = request.session.get('new_username')
+    raw_password = request.session.get('new_password')
+    if not username or not raw_password:
+        return redirect('signup')
+    # Optionnel : on peut supprimer ces informations de la session ensuite
+    # request.session.pop('new_username')
+    # request.session.pop('new_password')
+    context = {
+        'username': username,
+        'password': raw_password,
+    }
+    return render(request, 'landing/success-compte.html', context)
+
 
 def generate_username(prenom, nom):
     base_username = f"{prenom.capitalize()}{nom.capitalize()}"
@@ -59,8 +73,13 @@ def signup(request):
         user.set_password(password)
         user.save()
 
-        messages.success(request, f"Compte créé avec succès ! Votre identifiant est {username}")
-        return redirect('login')
+        messages.success(request, f"Compte créé avec succès !")
+        
+        # Stocker le username et le mot de passe dans la session pour affichage
+        request.session['new_username'] = username
+        request.session['new_password'] = password
+        
+        return redirect('account_success')
     return render(request, 'landing/signup.html')
 
 

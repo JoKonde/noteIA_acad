@@ -78,6 +78,16 @@
     <h2>Inscription à NoteIA</h2>
     <form method="POST">
       {% csrf_token %}
+      {% if messages %}
+  <ul style="list-style: none; padding: 0; margin-bottom: 1rem;">
+    {% for message in messages %}
+      <li style="background: #ebe8e8; color: #161616; padding: 0.75rem; border: 1px solid #f5c6cb; border-radius: 5px; margin-bottom: 0.5rem;">
+        {{ message }}
+      </li>
+    {% endfor %}
+  </ul>
+{% endif %}
+
       <input type="text" name="nom" placeholder="Nom" required>
       <input type="text" name="postnom" placeholder="Postnom" required>
       <input type="text" name="prenom" placeholder="Prénom" required>
@@ -87,7 +97,7 @@
         <option value="F">Féminin</option>
       </select>
       <input type="tel" name="tel" placeholder="Téléphone" required>
-      <input type="text" placeholder="Nom d'utilisateur" disabled value="Généré automatiquement">
+      <!-- <input type="text" placeholder="Nom d'utilisateur" disabled value="Généré automatiquement"> -->
       <input type="password" name="password" placeholder="Mot de passe" required>
       <textarea name="adresse" cols="30" rows="5" placeholder="Adresse..." required></textarea>
       <button type="submit">S'inscrire</button>

@@ -1,0 +1,110 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Compte créé - NoteIA</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Poppins', sans-serif;
+      background: linear-gradient(135deg, #87CEEB, #4682B4);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+    }
+    .card-container {
+      background: white;
+      padding: 2rem;
+      border-radius: 10px;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+      width: 100%;
+      max-width: 400px;
+      text-align: center;
+    }
+    .card-container h2 {
+      color: #2A4B7E;
+      margin-bottom: 1.5rem;
+    }
+    .info-field {
+      margin: 1rem 0;
+      text-align: left;
+      padding: 0.5rem;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .info-field span {
+      font-weight: 600;
+    }
+    .button-copy, .button-toggle {
+      background: #2A4B7E;
+      color: white;
+      border: none;
+      padding: 0.3rem 0.5rem;
+      border-radius: 5px;
+      cursor: pointer;
+      margin-left: 0.5rem;
+    }
+    .continue-button {
+      width: 100%;
+      padding: 0.75rem;
+      background: #2A4B7E;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      font-size: 1rem;
+      cursor: pointer;
+      margin-top: 1.5rem;
+    }
+    .continue-button:hover {
+      background: #1E3A5A;
+    }
+  </style>
+</head>
+<body>
+  <div class="card-container">
+    <h2>Compte créé avec succès !</h2>
+    <div class="info-field">
+      <div>
+        <span>Username :</span> <span id="username">{{ username }}</span>
+      </div>
+      <button class="button-copy" onclick="copyText('username')">Copier</button>
+    </div>
+    <div class="info-field">
+      <div>
+        <span>Mot de passe :</span> <span id="password" data-hidden="{{ password }}">*****</span>
+      </div>
+      <button class="button-toggle" onclick="togglePassword()">Afficher</button>
+    </div>
+    <a href="{% url 'login' %}"><button class="continue-button">Continuer</button></a>
+  </div>
+  <script>
+    function copyText(elementId) {
+      const text = document.getElementById(elementId).innerText;
+      navigator.clipboard.writeText(text).then(function() {
+        alert('Username copié !');
+      }, function(err) {
+        alert('Erreur lors de la copie : ' + err);
+      });
+    }
+
+    function togglePassword() {
+      const passwordSpan = document.getElementById('password');
+      const toggleButton = document.querySelector('.button-toggle');
+      if (passwordSpan.innerText === '*****') {
+        passwordSpan.innerText = passwordSpan.getAttribute('data-hidden');
+        toggleButton.innerText = 'Cacher';
+      } else {
+        passwordSpan.innerText = '*****';
+        toggleButton.innerText = 'Afficher';
+      }
+    }
+  </script>
+</body>
+</html>
