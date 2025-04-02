@@ -69,9 +69,20 @@
     <h2>Connexion à 
       <a href="{% url 'index' %}">NoteIA</a>
     </h2>
-    <form>
-      <input type="text" placeholder="Nom d'utilisateur" required>
-      <input type="password" placeholder="Mot de passe" required>
+    <form method="POST">
+      {% csrf_token %}
+      {% if messages %}
+      <ul style="list-style: none; padding: 0; margin-bottom: 1rem;">
+        {% for message in messages %}
+          <li style="background: #ebe8e8; color: #161616; padding: 0.75rem; border: 1px solid #f5c6cb; border-radius: 5px; margin-bottom: 0.5rem;">
+            {{ message }}
+          </li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+      <!-- Le champ devient "identifiant" pour username ou téléphone -->
+      <input type="text" name="identifiant" placeholder="Nom d'utilisateur ou Téléphone" required>
+      <input type="password" name="password" placeholder="Mot de passe" required>
       <button type="submit">Se connecter</button>
     </form>
     <p>Pas encore de compte ? <a href="{% url 'signup' %}">Inscrivez-vous ici</a></p>

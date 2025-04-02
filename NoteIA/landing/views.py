@@ -2,12 +2,51 @@ import random
 from django.shortcuts import render, redirect
 from django.contrib import messages
 from .models import CustomUser, Contact
+import jwt
+import os
+import datetime
+from django.conf import settings
 
+JWT_SECRET = os.environ.get('JWT_SECRET', 'lumiere_du_monde')
+JWT_ALGORITHM = 'HS256'
+JWT_EXP_DELTA_SECONDS = 3600  # 1 heure
 
 def index(request):
     return render(request, 'landing/index.html')
 
 def login(request):
+    if request.method == "POST":
+        identifiant = request.POST.get('identifiant')
+        password = request.POST.get('password')
+        user = None
+
+        # Essayer de récupérer par username
+        try:
+            user = CustomUser.objects.get(username=identifiant)
+        except CustomUser.DoesNotExist:
+            # Sinon, essayer par numéro de téléphone
+            try:
+                contact = Contact.objects.get(tel=identifiant)
+                user = CustomUser.objects.get(contact=contact)
+            except (Contact.DoesNotExist, CustomUser.DoesNotExist):
+                user = None
+
+        if not user or not user.check_password(password):
+            messages.error(request, "Identifiants invalides.")
+            return render(request, 'landing/login.html')
+
+        # Génération du JWT
+        payload = {
+            'user_id': user.id,
+            'exp': datetime.datetime.utcnow() + datetime.timedelta(seconds=JWT_EXP_DELTA_SECONDS)
+        }
+        token = jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
+
+        response = redirect('dashboard')
+        response.set_cookie('jwt', token)
+        messages.success(request, "Connexion réussie !")
+        return response
+
     return render(request, 'landing/login.html')
 
 
@@ -84,7 +123,21 @@ def signup(request):
 
 
 def dashboard(request):
-    return render(request, 'landing/dashboard.html')
+    token = request.COOKIES.get('jwt')
+    if not token:
+        messages.error(request, "Vous devez être connecté pour accéder au dashboard.")
+        return redirect('login')
+
+    try:
+        payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+        user = CustomUser.objects.get(id=payload['user_id'])
+        context = {'user_contact': user.contact}
+    except (jwt.ExpiredSignatureError, jwt.InvalidTokenError, CustomUser.DoesNotExist):
+        messages.error(request, "Session expirée ou invalide. Veuillez vous reconnecter.")
+        return redirect('login')
+
+    return render(request, 'landing/dashboard.html', context)
+
 
 
 def custom_404(request, exception):
