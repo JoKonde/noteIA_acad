@@ -5,6 +5,7 @@ from django.db import models
 from django.utils import timezone
 from Crypto.Cipher import AES
 from Crypto.Util.Padding import pad, unpad
+from django.utils import timezone
 
 # Clé secrète pour AES-256 (doit être de 32 octets)
 AES_KEY = os.environ.get('AES_KEY', '0123456789abcdef0123456789abcdef').encode()  # à définir dans vos variables d'environnement
@@ -46,3 +47,22 @@ class CustomUser(models.Model):
 
     def __str__(self):
         return self.username
+
+class Cours(models.Model):
+    nom = models.CharField(max_length=200, blank=False, null=False)
+    description = models.TextField()
+    # Lien vers l'utilisateur qui a créé le cours (suppression en cascade)
+    user = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
+    date_creation = models.DateTimeField(default=timezone.now)
+
+    def __str__(self):
+        return self.nom
+
+    class Meta:
+        unique_together = ('nom', 'user')
+
+#Explications :
+
+#Le champ nom est requis et ne peut être vide.
+
+#La contrainte unique_together = ('nom', 'user') garantit qu'un même utilisateur ne peut pas créer deux cours avec le même nom, mais autorise que différents utilisateurs puissent avoir un cours avec le même nom.

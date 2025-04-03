@@ -1,0 +1,11 @@
+{% extends "landing/dashboard.html" %}
+
+{% block content %}
+  <h2>Confirmer la suppression du cours</h2>
+  <p>Êtes-vous sûr de vouloir supprimer le cours "{{ course.nom }}" ? Cette action est irréversible.</p>
+  <form method="POST">
+    {% csrf_token %}
+    <button type="submit">Oui, supprimer</button>
+    <a href="{% url 'list_courses' %}">Annuler</a>
+  </form>
+{% endblock %}

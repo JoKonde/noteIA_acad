@@ -1,0 +1,33 @@
+{% extends "landing/dashboard.html" %}
+
+{% block content %}
+  <h2>Mes Cours</h2>
+  <div class="mb-3">
+    <a class="btn btn-primary" href="{% url 'create_course' %}">Créer un nouveau cours</a>
+  </div>
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Nom</th>
+        <th>Description</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for course in courses %}
+      <tr>
+        <td>{{ course.nom }}</td>
+        <td>{{ course.description }}</td>
+        <td>
+          <a class="btn btn-secondary btn-sm" href="{% url 'edit_course' course.id %}">Modifier</a>
+          <a class="btn btn-danger btn-sm" href="{% url 'delete_course' course.id %}" onclick="return confirm('Voulez-vous vraiment supprimer ce cours ?');">Supprimer</a>
+        </td>
+      </tr>
+      {% empty %}
+      <tr>
+        <td colspan="3">Aucun cours créé.</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% endblock %}

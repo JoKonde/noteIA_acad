@@ -1,0 +1,26 @@
+{% extends "landing/dashboard.html" %}
+
+{% block content %}
+  <h2>Modifier le cours</h2>
+  {% if messages %}
+      <ul style="list-style: none; padding: 0; margin-bottom: 1rem;">
+        {% for message in messages %}
+          <li style="background: #ebe8e8; color: #161616; padding: 0.75rem; border: 1px solid #f5c6cb; border-radius: 5px; margin-bottom: 0.5rem;">
+            {{ message }}
+          </li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+  <form method="POST">
+    {% csrf_token %}
+    <div>
+      <label for="nom">Nom du cours :</label>
+      <input type="text" id="nom" name="nom" value="{{ course.nom }}" required>
+    </div>
+    <div>
+      <label for="description">Description :</label>
+      <textarea id="description" name="description" required>{{ course.description }}</textarea>
+    </div>
+    <button type="submit">Modifier</button>
+  </form>
+{% endblock %}

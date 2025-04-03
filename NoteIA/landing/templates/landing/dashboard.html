@@ -161,7 +161,7 @@
       <div class="sidebar">
         <div class="sidebar-header">
           <h2 class="mb-0">
-            <a href="{% url 'index' %}">NoteIA</a>
+            <a href="{% url 'dashboard' %}">NoteIA</a>
           </h2>
           <!-- Bouton de fermeture masqué sur grand écran -->
           <!-- <button class="sidebar-toggle d-xl-none"><i class="bi bi-x"></i></button> -->
@@ -181,16 +181,8 @@
               </a>
               <div class="collapse" id="coursCollapse">
                 <ul class="submenu list-unstyled">
-                  <li>
-                    <a href="#" class="submenu-link"
-                      ><i class="bi bi-list-ul me-2"></i>Afficher cours</a
-                    >
-                  </li>
-                  <li>
-                    <a href="#" class="submenu-link"
-                      ><i class="bi bi-plus-circle me-2"></i>Créer cours</a
-                    >
-                  </li>
+                  <li><a href="{% url 'list_courses' %}" class="submenu-link"><i class="bi bi-list-ul me-2"></i>Afficher cours</a></li>
+      <li><a href="{% url 'create_course' %}" class="submenu-link"><i class="bi bi-plus-circle me-2"></i>Créer cours</a></li>
                 </ul>
               </div>
             </li>
@@ -289,8 +281,12 @@
 
       <!-- Content Area -->
       <div class="content-wrapper p-4">
+        {% block content %}
+          <!-- Contenu par défaut qui peut être remplacé par les templates enfants -->
         <h3>Bienvenue {{ user_contact.prenom }}-{{ user_contact.nom }} !</h3>
         <p>Contenu principal...</p>
+
+        {% endblock %}
       </div>
     </div>
 
