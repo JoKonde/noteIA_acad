@@ -195,7 +195,11 @@ def list_courses(request):
         messages.error(request, "Vous devez être connecté pour voir vos cours.")
         return redirect('login')
     courses = Cours.objects.filter(user=user)
-    return render(request, 'landing/list_courses.html', {'courses': courses})
+    context = {
+        'courses': courses,
+        'user_contact': user.contact  # Ajout de la variable pour le template
+    }
+    return render(request, 'landing/list_courses.html', context)
 
 
 
@@ -212,19 +216,22 @@ def create_course(request):
         # Vérifier que le nom a été fourni
         if not nom:
             messages.error(request, "Veuillez insérer le nom du cours.")
-            return render(request, 'landing/create_course.html')
+            return render(request, 'landing/create_course.html', {'user_contact': user.contact})
         
         # Vérifier qu'un cours avec ce nom n'existe pas déjà pour cet utilisateur
         if Cours.objects.filter(nom__iexact=nom, user=user).exists():
             messages.error(request, "Vous avez déjà créé ce cours.")
-            return render(request, 'landing/create_course.html')
+            return render(request, 'landing/create_course.html', {'user_contact': user.contact})
         
         # Créer le cours si toutes les validations sont passées
         Cours.objects.create(nom=nom, description=description, user=user)
         messages.success(request, "Cours créé avec succès !")
         return redirect('list_courses')
     
-    return render(request, 'landing/create_course.html')
+    context = {
+        'user_contact': user.contact  # Ajout de la variable pour le template
+    }
+    return render(request, 'landing/create_course.html', context)
 
 
 def custom_404(request, exception):

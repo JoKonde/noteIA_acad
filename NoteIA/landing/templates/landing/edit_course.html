@@ -1,6 +1,65 @@
 {% extends "landing/dashboard.html" %}
 
 {% block content %}
+
+<style>
+  /* Formulaire centré et dimensionné */
+  form {
+    max-width: 500px;
+    margin: 2rem auto;
+    padding: 1rem;
+    background: #f9f9f9;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  }
+  /* Style pour les div contenant les champs */
+  form div {
+    margin-bottom: 1rem;
+  }
+  /* Style pour les labels */
+  form label {
+    display: block;
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+  }
+  /* Style pour les inputs et textarea */
+  form input[type="text"],
+  form textarea {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    font-size: 1rem;
+    box-sizing: border-box;
+    transition: border-color 0.3s;
+  }
+  form input[type="text"]:focus,
+  form textarea:focus {
+    border-color: #2A4B7E;
+    outline: none;
+  }
+  /* Style spécifique pour le textarea */
+  form textarea {
+    resize: vertical;
+    min-height: 150px;
+  }
+  /* Style pour le bouton */
+  form button {
+    background: #2A4B7E;
+    color: #fff;
+    border: none;
+    padding: 0.75rem 1.5rem;
+    font-size: 1rem;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background 0.3s ease;
+  }
+  form button:hover {
+    background: #1E3A5A;
+  }
+</style>
+
+
   <h2>Modifier le cours</h2>
   {% if messages %}
       <ul style="list-style: none; padding: 0; margin-bottom: 1rem;">
