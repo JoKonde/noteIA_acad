@@ -66,3 +66,33 @@ class Cours(models.Model):
 #Le champ nom est requis et ne peut être vide.
 
 #La contrainte unique_together = ('nom', 'user') garantit qu'un même utilisateur ne peut pas créer deux cours avec le même nom, mais autorise que différents utilisateurs puissent avoir un cours avec le même nom.
+
+
+class Note(models.Model):
+    titre = models.CharField(max_length=200)
+    userOwner = models.ForeignKey('CustomUser', on_delete=models.CASCADE)
+    date = models.DateTimeField(default=timezone.now)
+    cours = models.ForeignKey('Cours', on_delete=models.CASCADE)
+
+    def __str__(self):
+        return self.titre
+
+    class Meta:
+        unique_together = ('titre', 'userOwner', 'cours')  # Vous pouvez choisir de rendre le titre unique par cours et owner
+
+class TextNote(models.Model):
+    note = models.ForeignKey(Note, on_delete=models.CASCADE)
+    texte = models.TextField()
+    date = models.DateTimeField(default=timezone.now)
+    userEditeur = models.ForeignKey('CustomUser', on_delete=models.CASCADE)
+
+    def __str__(self):
+        return f"TextNote for {self.note.titre} by {self.userEditeur.username}"
+
+class Collaborateur(models.Model):
+    note = models.ForeignKey(Note, on_delete=models.CASCADE)
+    userCollab = models.ForeignKey('CustomUser', on_delete=models.CASCADE)
+    date = models.DateTimeField(default=timezone.now)
+
+    def __str__(self):
+        return f"Collaborateur {self.userCollab.username} on {self.note.titre}"

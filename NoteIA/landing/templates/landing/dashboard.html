@@ -187,31 +187,27 @@
               </div>
             </li>
             <!-- Menu Notes -->
-            <li class="menu-item">
-              <a
-                href="#notesCollapse"
-                data-bs-toggle="collapse"
-                class="menu-link"
-              >
-                <i class="bi bi-pencil-square me-2"></i>
-                Notes
-                <i class="bi bi-chevron-down ms-auto"></i>
-              </a>
-              <div class="collapse" id="notesCollapse">
-                <ul class="submenu list-unstyled">
-                  <li>
-                    <a href="#" class="submenu-link"
-                      ><i class="bi bi-card-list me-2"></i>Afficher notes</a
-                    >
-                  </li>
-                  <li>
-                    <a href="#" class="submenu-link"
-                      ><i class="bi bi-file-earmark-plus me-2"></i>Créer note</a
-                    >
-                  </li>
-                </ul>
-              </div>
-            </li>
+    <li class="menu-item">
+      <a href="#notesCollapse" data-bs-toggle="collapse" class="menu-link">
+        <i class="bi bi-pencil-square me-2"></i>
+        Notes
+        <i class="bi bi-chevron-down ms-auto"></i>
+      </a>
+      <div class="collapse" id="notesCollapse">
+        <ul class="submenu list-unstyled">
+          <li>
+            <a href="{% url 'select_course_for_note' %}" class="submenu-link">
+              <i class="bi bi-card-list me-2"></i>Afficher notes
+            </a>
+          </li>
+          <li>
+            <a href="{% url 'select_course_for_note' %}" class="submenu-link">
+              <i class="bi bi-file-earmark-plus me-2"></i>Créer note
+            </a>
+          </li>
+        </ul>
+      </div>
+    </li>
             <!-- Autres éléments -->
             <li class="menu-item">
               <a href="#" class="menu-link">

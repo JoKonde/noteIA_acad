@@ -1,0 +1,66 @@
+{% extends "landing/dashboard.html" %}
+{% block content %}
+<style>
+  .card-deck {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+  .card {
+    flex: 1 1 calc(33% - 1rem);
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    padding: 1rem;
+    text-align: center;
+    transition: transform 0.3s;
+  }
+  .card:hover {
+    transform: translateY(-5px);
+  }
+  .card h5 {
+    margin-top: 0;
+    color: #2A4B7E;
+  }
+  .card p {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 3; /* Limite à 3 lignes */
+    -webkit-box-orient: vertical;
+  }
+  .card a {
+    display: inline-block;
+    margin-top: 0.5rem;
+    background: #2A4B7E;
+    color: #fff;
+    padding: 0.5rem 1rem;
+    border-radius: 5px;
+    text-decoration: none;
+  }
+</style>
+
+<h2>Sélectionnez un cours pour créer une note</h2>
+{% if messages %}
+  <ul style="list-style: none; padding: 0; margin-bottom: 1rem;">
+    {% for message in messages %}
+      <li style="background: #ebe8e8; color: #161616; padding: 0.75rem; border: 1px solid #f5c6cb; border-radius: 5px; margin-bottom: 0.5rem;">
+        {{ message }}
+      </li>
+    {% endfor %}
+  </ul>
+{% endif %}
+
+<div class="card-deck">
+  {% for course in courses %}
+  <div class="card">
+    <h5>{{ course.nom }}</h5>
+    <p>{{ course.description }}</p>
+    <a href="{% url 'list_notes' course.id %}">Voir les notes</a>
+  </div>
+  {% empty %}
+  <p>Aucun cours trouvé. Créez un cours d'abord.</p>
+  {% endfor %}
+</div>
+{% endblock %}

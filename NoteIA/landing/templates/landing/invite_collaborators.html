@@ -1,0 +1,48 @@
+{% extends "landing/dashboard.html" %}
+{% block content %}
+<style>
+  form {
+    max-width: 500px;
+    margin: 2rem auto;
+    padding: 1rem;
+    background: #f9f9f9;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  }
+  form input[type="text"] {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+  }
+  form button {
+    background: #2A4B7E;
+    color: #fff;
+    border: none;
+    padding: 0.75rem 1rem;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background 0.3s;
+  }
+  form button:hover {
+    background: #1E3A5A;
+  }
+</style>
+
+<h2>Inviter des collaborateurs pour la note "{{ note.titre }}"</h2>
+{% if messages %}
+  <ul style="list-style: none; padding: 0; margin-bottom: 1rem;">
+    {% for message in messages %}
+      <li style="background: #ebe8e8; color: #161616; padding: 0.75rem; border: 1px solid #f5c6cb; border-radius: 5px; margin-bottom: 0.5rem;">
+        {{ message }}
+      </li>
+    {% endfor %}
+  </ul>
+{% endif %}
+<p>Recherchez par @username ou numéro de téléphone, séparez plusieurs entrées par une virgule.</p>
+<form method="POST">
+  {% csrf_token %}
+  <input type="text" name="collaborators" placeholder="@alice, @bob, 1234567890" required>
+  <button type="submit">Inviter</button>
+</form>
+{% endblock %}

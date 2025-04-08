@@ -1,7 +1,7 @@
 import random
 from django.shortcuts import render, redirect
 from django.contrib import messages
-from .models import CustomUser, Contact, Cours
+from .models import CustomUser, Contact, Cours,Note,Collaborateur,TextNote
 import jwt
 import os
 import datetime
@@ -232,6 +232,150 @@ def create_course(request):
         'user_contact': user.contact  # Ajout de la variable pour le template
     }
     return render(request, 'landing/create_course.html', context)
+
+
+
+def select_course_for_note(request):
+    """
+    Affiche la liste des cours sous forme de cartes pour que l'utilisateur
+    choisisse dans lequel créer une note.
+    """
+    user = get_current_user(request)
+    if not user:
+        messages.error(request, "Vous devez être connecté pour créer une note.")
+        return redirect('login')
+    courses = Cours.objects.filter(user=user)
+    context = {
+        'courses': courses,
+        'user_contact': user.contact
+    }
+    return render(request, 'landing/select_course_for_note.html', context)
+
+
+def list_notes(request, course_id):
+    user = get_current_user(request)
+    if not user:
+        messages.error(request, "Vous devez être connecté pour voir les notes.")
+        return redirect('login')
+    course = get_object_or_404(Cours, id=course_id, user=user)
+    notes = Note.objects.filter(cours=course, userOwner=user)
+    context = {
+        'course': course,
+        'notes': notes,
+        'user_contact': user.contact
+    }
+    return render(request, 'landing/list_notes.html', context)
+
+
+def create_note(request, course_id):
+    user = get_current_user(request)
+    if not user:
+        messages.error(request, "Vous devez être connecté pour créer une note.")
+        return redirect('login')
+    course = get_object_or_404(Cours, id=course_id, user=user)
+    
+    if request.method == "POST":
+        titre = request.POST.get('titre', '').strip()
+        if not titre:
+            messages.error(request, "Veuillez insérer un titre pour la note.")
+            return render(request, 'landing/create_note.html', {'course': course, 'user_contact': user.contact})
+        # Vérifier l'unicité du titre pour cet utilisateur et ce cours
+        if Note.objects.filter(titre__iexact=titre, cours=course, userOwner=user).exists():
+            messages.error(request, "Vous avez déjà créé une note avec ce titre dans ce cours.")
+            return render(request, 'landing/create_note.html', {'course': course, 'user_contact': user.contact})
+        # Créer la note
+        Note.objects.create(titre=titre, cours=course, userOwner=user)
+        messages.success(request, "Note créée avec succès !")
+        return redirect('list_notes', course_id=course.id)
+    
+    return render(request, 'landing/create_note.html', {'course': course, 'user_contact': user.contact})
+
+
+def note_detail(request, note_id):
+    user = get_current_user(request)
+    if not user:
+        messages.error(request, "Vous devez être connecté pour voir cette note.")
+        return redirect('login')
+    note = get_object_or_404(Note, id=note_id)
+    # Autoriser la consultation si l'utilisateur est owner ou collaborateur
+    is_collaborator = Collaborateur.objects.filter(note=note, userCollab=user).exists()
+    if note.userOwner != user and not is_collaborator:
+        messages.error(request, "Vous n'avez pas accès à cette note.")
+        return redirect('dashboard')
+    textnotes = TextNote.objects.filter(note=note)
+    # Récupérer les collaborateurs pour l'affichage (pour le owner)
+    collaborators = Collaborateur.objects.filter(note=note)
+    context = {
+        'note': note,
+        'textnotes': textnotes,
+        'collaborators': collaborators,
+        'user_contact': note.userOwner.contact if note.userOwner == user else user.contact,
+        'is_owner': note.userOwner == user
+    }
+    return render(request, 'landing/note_detail.html', context)
+
+
+def create_textnote(request, note_id):
+    user = get_current_user(request)
+    if not user:
+        messages.error(request, "Vous devez être connecté pour créer un texte.")
+        return redirect('login')
+    note = get_object_or_404(Note, id=note_id)
+    # Autoriser la création si l'utilisateur est owner ou collaborateur
+    is_collaborator = Collaborateur.objects.filter(note=note, userCollab=user).exists()
+    if note.userOwner != user and not is_collaborator:
+        messages.error(request, "Vous n'avez pas le droit d'éditer cette note.")
+        return redirect('dashboard')
+    
+    if request.method == "POST":
+        texte = request.POST.get('texte', '').strip()
+        if not texte:
+            messages.error(request, "Le texte ne peut pas être vide.")
+            return render(request, 'landing/create_textnote.html', {'note': note, 'user_contact': user.contact})
+        TextNote.objects.create(note=note, texte=texte, userEditeur=user)
+        messages.success(request, "Texte ajouté avec succès !")
+        return redirect('note_detail', note_id=note.id)
+    
+    return render(request, 'landing/create_textnote.html', {'note': note, 'user_contact': user.contact})
+
+
+def invite_collaborators(request, note_id):
+    user = get_current_user(request)
+    if not user:
+        messages.error(request, "Vous devez être connecté pour inviter des collaborateurs.")
+        return redirect('login')
+    note = get_object_or_404(Note, id=note_id, userOwner=user)
+    
+    if request.method == "POST":
+        # On attend une liste d'identifiants d'utilisateurs (par exemple via POST, séparés par une virgule)
+        collaborators_input = request.POST.get('collaborators', '')
+        # Par exemple, on suppose que l'entrée est de la forme "@user1,@user2" ou des numéros
+        collaborator_identifiers = [item.strip() for item in collaborators_input.split(',') if item.strip()]
+        added = []
+        for ident in collaborator_identifiers:
+            # Rechercher par username ou tel (si ident commence par @, on cherche par username)
+            try:
+                if ident.startswith('@'):
+                    # Enlever le '@'
+                    target_user = CustomUser.objects.get(username__iexact=ident[1:])
+                else:
+                    target_user = CustomUser.objects.get(contact__tel=ident)
+                # Ne pas inviter le créateur lui-même
+                if target_user == user:
+                    continue
+                # Vérifier que ce collaborateur n'est pas déjà invité
+                if not Collaborateur.objects.filter(note=note, userCollab=target_user).exists():
+                    Collaborateur.objects.create(note=note, userCollab=target_user)
+                    added.append(target_user.username)
+            except CustomUser.DoesNotExist:
+                continue
+        if added:
+            messages.success(request, f"Collaborateur(s) {', '.join(added)} invité(s) avec succès.")
+        else:
+            messages.error(request, "Aucun collaborateur n'a été ajouté.")
+        return redirect('note_detail', note_id=note.id)
+    
+    return render(request, 'landing/invite_collaborators.html', {'note': note, 'user_contact': user.contact})
 
 
 def custom_404(request, exception):

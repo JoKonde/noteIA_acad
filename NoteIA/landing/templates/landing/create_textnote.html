@@ -1,0 +1,49 @@
+{% extends "landing/dashboard.html" %}
+{% block content %}
+<style>
+  form {
+    max-width: 600px;
+    margin: 2rem auto;
+    padding: 1rem;
+    background: #f9f9f9;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  }
+  form textarea {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    resize: vertical;
+    min-height: 150px;
+  }
+  form button {
+    background: #2A4B7E;
+    color: #fff;
+    border: none;
+    padding: 0.75rem 1.5rem;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background 0.3s;
+  }
+  form button:hover {
+    background: #1E3A5A;
+  }
+</style>
+
+<h2>Ajouter un texte à la note "{{ note.titre }}"</h2>
+{% if messages %}
+  <ul style="list-style: none; padding: 0; margin-bottom: 1rem;">
+    {% for message in messages %}
+      <li style="background: #ebe8e8; color: #161616; padding: 0.75rem; border: 1px solid #f5c6cb; border-radius: 5px; margin-bottom: 0.5rem;">
+        {{ message }}
+      </li>
+    {% endfor %}
+  </ul>
+{% endif %}
+<form method="POST">
+  {% csrf_token %}
+  <textarea name="texte" placeholder="Entrez votre texte ici" required></textarea>
+  <button type="submit">Ajouter le texte</button>
+</form>
+{% endblock %}

@@ -1,0 +1,75 @@
+{% extends "landing/dashboard.html" %}
+{% block content %}
+<style>
+  .textnote-card {
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+  }
+  .header-section {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+  }
+  .btn {
+    padding: 0.5rem 0.75rem;
+    border-radius: 5px;
+    text-decoration: none;
+    color: #fff;
+    background: #2A4B7E;
+    transition: background 0.3s;
+  }
+  .btn:hover {
+    background: #1E3A5A;
+  }
+  .collab-info {
+    color: green;
+    font-weight: bold;
+    margin-top: 0.5rem;
+  }
+</style>
+
+<div class="header-section">
+  <h2>{{ note.titre }}</h2>
+  {% if messages %}
+  <ul style="list-style: none; padding: 0; margin-bottom: 1rem;">
+    {% for message in messages %}
+      <li style="background: #ebe8e8; color: #161616; padding: 0.75rem; border: 1px solid #f5c6cb; border-radius: 5px; margin-bottom: 0.5rem;">
+        {{ message }}
+      </li>
+    {% endfor %}
+  </ul>
+{% endif %}
+  {% if is_owner %}
+  <a class="btn" href="{% url 'invite_collaborators' note.id %}">Inviter</a>
+  {% endif %}
+</div>
+
+<p>Créée le {{ note.date|date:"d/m/Y H:i" }}</p>
+
+<h3>TextNotes</h3>
+{% for tn in textnotes %}
+  <div class="textnote-card">
+    <p>{{ tn.texte }}</p>
+    <small>Édité par {{ tn.userEditeur.username }} le {{ tn.date|date:"d/m/Y H:i" }}</small>
+  </div>
+{% empty %}
+  <p>Aucun texte ajouté pour cette note.</p>
+{% endfor %}
+
+<a class="btn" href="{% url 'create_textnote' note.id %}">Ajouter un texte</a>
+
+{% if is_owner and collaborators %}
+  <div class="collab-info">
+    Invité(s) : 
+    {% for collab in collaborators %}
+      {{ collab.userCollab.username }}{% if not forloop.last %}, {% endif %}
+    {% endfor %}
+    <br> (par invitation)
+  </div>
+{% endif %}
+{% endblock %}

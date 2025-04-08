@@ -1,0 +1,70 @@
+{% extends "landing/dashboard.html" %}
+{% block content %}
+<style>
+  .card-deck {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+  .card {
+    flex: 1 1 calc(45% - 1rem);
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    padding: 1rem;
+    transition: transform 0.3s;
+  }
+  .card:hover {
+    transform: translateY(-5px);
+  }
+  .card h5 {
+    margin-top: 0;
+    color: #2A4B7E;
+  }
+  .card p {
+    color: #555;
+  }
+  .card a {
+    display: inline-block;
+    margin-top: 0.5rem;
+    background: #2A4B7E;
+    color: #fff;
+    padding: 0.5rem 1rem;
+    border-radius: 5px;
+    text-decoration: none;
+  }
+  .header-section {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+  }
+</style>
+
+<div class="header-section">
+  <h2>Notes pour le cours "{{ course.nom }}"</h2>
+  {% if messages %}
+  <ul style="list-style: none; padding: 0; margin-bottom: 1rem;">
+    {% for message in messages %}
+      <li style="background: #ebe8e8; color: #161616; padding: 0.75rem; border: 1px solid #f5c6cb; border-radius: 5px; margin-bottom: 0.5rem;">
+        {{ message }}
+      </li>
+    {% endfor %}
+  </ul>
+{% endif %}
+  <a class="btn btn-primary" href="{% url 'create_note' course.id %}">Créer une note</a>
+</div>
+
+<div class="card-deck">
+  {% for note in notes %}
+  <div class="card">
+    <h5>{{ note.titre }}</h5>
+    <p>Créée le {{ note.date|date:"d/m/Y H:i" }}</p>
+    <a href="{% url 'note_detail' note.id %}">Voir la note</a>
+  </div>
+  {% empty %}
+  <p>Aucune note créée dans ce cours.</p>
+  {% endfor %}
+</div>
+{% endblock %}
