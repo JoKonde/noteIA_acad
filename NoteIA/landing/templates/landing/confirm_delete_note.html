@@ -1,0 +1,61 @@
+{% extends "landing/dashboard.html" %}
+{% block content %}
+<style>
+  /* Conteneur du formulaire de confirmation */
+  .confirm-container {
+    max-width: 500px;
+    margin: 2rem auto;
+    padding: 2rem;
+    background: #ffffff;
+    border-radius: 10px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    text-align: center;
+  }
+  /* Titre et message */
+  .confirm-container h2 {
+    color: #2A4B7E;
+    margin-bottom: 1rem;
+  }
+  .confirm-container p {
+    font-size: 1rem;
+    margin-bottom: 2rem;
+    color: #333;
+  }
+  /* Boutons */
+  .btn-confirm {
+    background: #dc3545;
+    color: #fff;
+    border: none;
+    padding: 0.75rem 1.5rem;
+    font-size: 1rem;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background 0.3s ease;
+  }
+  .btn-confirm:hover {
+    background: #c82333;
+  }
+  .btn-cancel {
+    display: inline-block;
+    margin-left: 1rem;
+    font-weight: 600;
+    color: #2A4B7E;
+    text-decoration: none;
+    transition: color 0.3s;
+  }
+  .btn-cancel:hover {
+    color: #1E3A5A;
+    text-decoration: underline;
+  }
+</style>
+
+<div class="confirm-container">
+  <h2>Confirmer la suppression</h2>
+  <p>Voulez-vous vraiment supprimer la note « {{ note.titre }} » ?</p>
+  <form method="POST">
+    {% csrf_token %}
+    <button type="submit" class="btn-confirm">Oui, supprimer</button>
+    <a href="{% url 'list_notes' note.cours.id %}" class="btn-cancel">Annuler</a>
+  </form>
+</div>
+{% endblock %}

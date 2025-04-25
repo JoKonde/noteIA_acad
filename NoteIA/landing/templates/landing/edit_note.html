@@ -1,0 +1,84 @@
+{% extends "landing/dashboard.html" %}
+{% block content %}
+<style>
+  /* Conteneur du formulaire */
+  form {
+    max-width: 500px;
+    margin: 2rem auto;
+    padding: 2rem;
+    background: #ffffff;
+    border-radius: 10px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  }
+  /* Espacement des champs */
+  form div {
+    margin-bottom: 1.25rem;
+  }
+  /* Label */
+  form label {
+    display: block;
+    font-weight: 600;
+    color: #2A4B7E;
+    margin-bottom: 0.5rem;
+  }
+  /* Input texte */
+  form input[type="text"] {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    font-size: 1rem;
+    transition: border-color 0.3s;
+    box-sizing: border-box;
+  }
+  form input[type="text"]:focus {
+    border-color: #2A4B7E;
+    outline: none;
+  }
+  /* Bouton d'envoi */
+  .btn-submit {
+    background: #2A4B7E;
+    color: #fff;
+    border: none;
+    padding: 0.75rem 1.5rem;
+    font-size: 1rem;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background 0.3s ease;
+  }
+  .btn-submit:hover {
+    background: #1E3A5A;
+  }
+  /* Bouton annuler */
+  .btn-cancel {
+    margin-left: 1rem;
+    font-weight: 600;
+    color: #2A4B7E;
+    text-decoration: none;
+    transition: color 0.3s;
+  }
+  .btn-cancel:hover {
+    color: #1E3A5A;
+    text-decoration: underline;
+  }
+</style>
+
+<h2>Modifier la note « {{ note.titre }} »</h2>
+
+<form method="POST">
+  {% csrf_token %}
+  <div>
+    <label for="titre">Titre de la note</label>
+    <input
+      type="text"
+      id="titre"
+      name="titre"
+      value="{{ note.titre }}"
+      placeholder="Entrez un nouveau titre"
+      required
+    >
+  </div>
+  <button type="submit" class="btn-submit">Enregistrer</button>
+  <a href="{% url 'list_notes' note.cours.id %}" class="btn-cancel">Annuler</a>
+</form>
+{% endblock %}

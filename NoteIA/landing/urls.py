@@ -22,5 +22,8 @@ urlpatterns = [
     path('note/<int:note_id>/', views.note_detail, name='note_detail'),
     path('note/<int:note_id>/create-text/', views.create_textnote, name='create_textnote'),
     path('note/<int:note_id>/invite/', views.invite_collaborators, name='invite_collaborators'),
+
+    path('note/<int:note_id>/edit/', views.edit_note, name='edit_note'),
+    path('note/<int:note_id>/delete/', views.delete_note, name='delete_note'),
     
 ]

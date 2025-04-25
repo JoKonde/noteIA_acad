@@ -6,6 +6,7 @@ import jwt
 import os
 import datetime
 from django.conf import settings
+from django.db.models import Q
 
 from django.shortcuts import get_object_or_404
 
@@ -189,17 +190,33 @@ def delete_course(request, course_id):
     # En GET, on affiche la page de confirmation
     return render(request, 'landing/confirm_delete_course.html', {'course': course})
 
+
+
 def list_courses(request):
     user = get_current_user(request)
     if not user:
         messages.error(request, "Vous devez être connecté pour voir vos cours.")
         return redirect('login')
-    courses = Cours.objects.filter(user=user)
-    context = {
-        'courses': courses,
-        'user_contact': user.contact  # Ajout de la variable pour le template
-    }
-    return render(request, 'landing/list_courses.html', context)
+
+    # Tous les cours où je suis owner ou où je suis invité (via une note)
+    cours_qs = Cours.objects.filter(
+        Q(user=user) | 
+        Q(note__collaborateur__userCollab=user)
+    ).distinct()
+
+    # Préparer la liste annotée
+    course_list = []
+    for cours in cours_qs:
+        invited = (cours.user != user)
+        course_list.append({
+            'cours': cours,
+            'invited': invited
+        })
+
+    return render(request, 'landing/list_courses.html', {
+        'course_list': course_list,
+        'user_contact': user.contact
+    })
 
 
 
@@ -257,15 +274,30 @@ def list_notes(request, course_id):
     if not user:
         messages.error(request, "Vous devez être connecté pour voir les notes.")
         return redirect('login')
-    course = get_object_or_404(Cours, id=course_id, user=user)
-    notes = Note.objects.filter(cours=course, userOwner=user)
-    context = {
-        'course': course,
-        'notes': notes,
-        'user_contact': user.contact
-    }
-    return render(request, 'landing/list_notes.html', context)
 
+    cours = get_object_or_404(Cours, id=course_id)
+     # Est-ce que je suis invité (non propriétaire) pour ce cours ?
+    course_invited = (cours.user != user)
+    # Notes où je suis owner ou coéditeur
+    notes_qs = Note.objects.filter(
+        Q(cours=cours, userOwner=user) |
+        Q(collaborateur__userCollab=user)
+    ).distinct()
+
+    notes_list = []
+    for note in notes_qs:
+        invited = (note.userOwner != user)
+        notes_list.append({
+            'note': note,
+            'invited': invited
+        })
+
+    return render(request, 'landing/list_notes.html', {
+        'course': cours,
+        'notes_list': notes_list,
+        'course_invited': course_invited,
+        'user_contact': user.contact
+    })
 
 def create_note(request, course_id):
     user = get_current_user(request)
@@ -296,24 +328,26 @@ def note_detail(request, note_id):
     if not user:
         messages.error(request, "Vous devez être connecté pour voir cette note.")
         return redirect('login')
+
     note = get_object_or_404(Note, id=note_id)
-    # Autoriser la consultation si l'utilisateur est owner ou collaborateur
-    is_collaborator = Collaborateur.objects.filter(note=note, userCollab=user).exists()
-    if note.userOwner != user and not is_collaborator:
+    is_owner = (note.userOwner == user)
+    is_collab = Collaborateur.objects.filter(note=note, userCollab=user).exists()
+    if not (is_owner or is_collab):
         messages.error(request, "Vous n'avez pas accès à cette note.")
         return redirect('dashboard')
+
     textnotes = TextNote.objects.filter(note=note)
-    # Récupérer les collaborateurs pour l'affichage (pour le owner)
     collaborators = Collaborateur.objects.filter(note=note)
-    context = {
+    invited = not is_owner  # si je ne suis pas owner, j'y suis invité
+
+    return render(request, 'landing/note_detail.html', {
         'note': note,
         'textnotes': textnotes,
         'collaborators': collaborators,
-        'user_contact': note.userOwner.contact if note.userOwner == user else user.contact,
-        'is_owner': note.userOwner == user
-    }
-    return render(request, 'landing/note_detail.html', context)
-
+        'invited': invited,
+        'is_owner': is_owner,
+        'user_contact': user.contact
+    })
 
 def create_textnote(request, note_id):
     user = get_current_user(request)
@@ -377,6 +411,60 @@ def invite_collaborators(request, note_id):
     
     return render(request, 'landing/invite_collaborators.html', {'note': note, 'user_contact': user.contact})
 
+def edit_note(request, note_id):
+    user = get_current_user(request)
+    if not user:
+        messages.error(request, "Vous devez être connecté pour modifier une note.")
+        return redirect('login')
+
+    note = get_object_or_404(Note, id=note_id, userOwner=user)
+    if request.method == "POST":
+        titre = request.POST.get('titre', '').strip()
+        if not titre:
+            messages.error(request, "Le titre ne peut pas être vide.")
+            return render(request, 'landing/edit_note.html', {
+                'note': note,
+                'user_contact': user.contact
+            })
+        # Vérifier unicité du titre dans ce cours
+        if Note.objects.filter(
+            titre__iexact=titre,
+            cours=note.cours,
+            userOwner=user
+        ).exclude(id=note.id).exists():
+            messages.error(request, "Vous avez déjà une note avec ce titre dans ce cours.")
+            return render(request, 'landing/edit_note.html', {
+                'note': note,
+                'user_contact': user.contact
+            })
+        note.titre = titre
+        note.save()
+        messages.success(request, "Note modifiée avec succès !")
+        return redirect('list_notes', course_id=note.cours.id)
+
+    return render(request, 'landing/edit_note.html', {
+        'note': note,
+        'user_contact': user.contact
+    })
+
+def delete_note(request, note_id):
+    user = get_current_user(request)
+    if not user:
+        messages.error(request, "Vous devez être connecté pour supprimer une note.")
+        return redirect('login')
+
+    note = get_object_or_404(Note, id=note_id, userOwner=user)
+    if request.method == "POST":
+        course_id = note.cours.id
+        note.delete()
+        messages.success(request, "Note supprimée avec succès !")
+        return redirect('list_notes', course_id=course_id)
+
+    # GET → confirmation
+    return render(request, 'landing/confirm_delete_note.html', {
+        'note': note,
+        'user_contact': user.contact
+    })
 
 def custom_404(request, exception):
     return render(request, 'landing/404.html', status=404)

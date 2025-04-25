@@ -25,14 +25,34 @@
   .card p {
     color: #555;
   }
+  /* Boutons des cartes : taille réduite */
+  .card a.btn,
+  .card a.btn-sm,
   .card a {
     display: inline-block;
-    margin-top: 0.5rem;
     background: #2A4B7E;
     color: #fff;
-    padding: 0.5rem 1rem;
-    border-radius: 5px;
+    padding: 0.25rem 0.75rem;
+    font-size: 0.85rem;
+    border-radius: 4px;
     text-decoration: none;
+    transition: background 0.3s;
+    margin-top: 0.5rem;
+  }
+  .card a.btn-secondary {
+    background: #6c757d;
+  }
+  .card a.btn-danger {
+    background: #dc3545;
+  }
+  .card a:hover {
+    background: #1E3A5A;
+  }
+  .card a.btn-secondary:hover {
+    background: #565e64;
+  }
+  .card a.btn-danger:hover {
+    background: #c82333;
   }
   .header-section {
     display: flex;
@@ -40,31 +60,57 @@
     align-items: center;
     margin-bottom: 1.5rem;
   }
+  .invited-label {
+    color: green;
+    font-style: italic;
+    margin-top: 0.25rem;
+    display: block;
+  }
+  /* Bouton "Créer une note" plus compact */
+  .header-section .btn-primary {
+    padding: 0.4rem 0.8rem;
+    font-size: 0.9rem;
+  }
 </style>
 
 <div class="header-section">
-  <h2>Notes pour le cours "{{ course.nom }}"</h2>
+  <h2>Notes pour « {{ course.nom }} »</h2>
   {% if messages %}
-  <ul style="list-style: none; padding: 0; margin-bottom: 1rem;">
-    {% for message in messages %}
-      <li style="background: #ebe8e8; color: #161616; padding: 0.75rem; border: 1px solid #f5c6cb; border-radius: 5px; margin-bottom: 0.5rem;">
-        {{ message }}
-      </li>
-    {% endfor %}
-  </ul>
-{% endif %}
-  <a class="btn btn-primary" href="{% url 'create_note' course.id %}">Créer une note</a>
+    <ul style="list-style:none; padding:0; margin-bottom:1rem;">
+      {% for message in messages %}
+        <li style="background:#ebe8e8; color:#161616; padding:0.75rem; border:1px solid #f5c6cb; border-radius:5px; margin-bottom:0.5rem;">
+          {{ message }}
+        </li>
+      {% endfor %}
+    </ul>
+  {% endif %}
+  {# N’affiche le bouton que si on n’est PAS invité au cours #}
+  {% if not course_invited %}
+    <a class="btn btn-primary" href="{% url 'create_note' course.id %}">Créer une note</a>
+  {% endif %}
 </div>
 
 <div class="card-deck">
-  {% for note in notes %}
-  <div class="card">
-    <h5>{{ note.titre }}</h5>
-    <p>Créée le {{ note.date|date:"d/m/Y H:i" }}</p>
-    <a href="{% url 'note_detail' note.id %}">Voir la note</a>
-  </div>
+  {% for item in notes_list %}
+    {% with note=item.note %}
+    <div class="card">
+      <h5>{{ note.titre }}</h5>
+      <p>Créée le {{ note.date|date:"d/m/Y H:i" }}</p>
+      {% if item.invited %}
+        <span class="invited-label">Par invitation</span>
+      {% endif %}
+      <a href="{% url 'note_detail' note.id %}">Voir la note</a>
+      {% if not item.invited %}
+        <a href="{% url 'edit_note' note.id %}" class="btn btn-secondary btn-sm ms-2">Modifier</a>
+        <a href="{% url 'delete_note' note.id %}" class="btn btn-danger btn-sm ms-2"
+           onclick="return confirm('Voulez-vous vraiment supprimer cette note ?');">
+          Supprimer
+        </a>
+      {% endif %}
+    </div>
+    {% endwith %}
   {% empty %}
-  <p>Aucune note créée dans ce cours.</p>
+    <p>Aucune note créée dans ce cours.</p>
   {% endfor %}
 </div>
 {% endblock %}

@@ -26,27 +26,42 @@
   .btn:hover {
     background: #1E3A5A;
   }
+  .invited-label {
+    color: green;
+    font-style: italic;
+    margin-left: 1rem;
+  }
   .collab-info {
     color: green;
     font-weight: bold;
-    margin-top: 0.5rem;
+    margin-top: 1rem;
   }
 </style>
 
 <div class="header-section">
-  <h2>{{ note.titre }}</h2>
+  <div>
+    <h2 style="display:inline">{{ note.titre }}</h2>
+    {% if invited %}
+      <span class="invited-label">Par invitation</span>
+    {% endif %}
+  </div>
+
   {% if messages %}
-  <ul style="list-style: none; padding: 0; margin-bottom: 1rem;">
-    {% for message in messages %}
-      <li style="background: #ebe8e8; color: #161616; padding: 0.75rem; border: 1px solid #f5c6cb; border-radius: 5px; margin-bottom: 0.5rem;">
-        {{ message }}
-      </li>
-    {% endfor %}
-  </ul>
-{% endif %}
-  {% if is_owner %}
-  <a class="btn" href="{% url 'invite_collaborators' note.id %}">Inviter</a>
+    <ul style="list-style:none; padding:0; margin:0 1rem 1rem 0; flex:1;">
+      {% for message in messages %}
+        <li style="background:#ebe8e8; color:#161616; padding:0.75rem; border:1px solid #f5c6cb; border-radius:5px; margin-bottom:0.5rem;">
+          {{ message }}
+        </li>
+      {% endfor %}
+    </ul>
   {% endif %}
+
+  <div>
+    {% if is_owner %}
+      <a class="btn" href="{% url 'invite_collaborators' note.id %}">Inviter</a>
+    {% endif %}
+    <a class="btn" href="{% url 'create_textnote' note.id %}">Ajouter un texte</a>
+  </div>
 </div>
 
 <p>Créée le {{ note.date|date:"d/m/Y H:i" }}</p>
@@ -55,21 +70,23 @@
 {% for tn in textnotes %}
   <div class="textnote-card">
     <p>{{ tn.texte }}</p>
-    <small>Édité par {{ tn.userEditeur.username }} le {{ tn.date|date:"d/m/Y H:i" }}</small>
+    <small>
+      Édité par {{ tn.userEditeur.username }} le {{ tn.date|date:"d/m/Y H:i" }}
+      {% if tn.userEditeur != note.userOwner %}
+        <span class="invited-label">(Par invitation)</span>
+      {% endif %}
+    </small>
   </div>
 {% empty %}
   <p>Aucun texte ajouté pour cette note.</p>
 {% endfor %}
 
-<a class="btn" href="{% url 'create_textnote' note.id %}">Ajouter un texte</a>
-
 {% if is_owner and collaborators %}
   <div class="collab-info">
     Invité(s) : 
-    {% for collab in collaborators %}
-      {{ collab.userCollab.username }}{% if not forloop.last %}, {% endif %}
+    {% for c in collaborators %}
+      {{ c.userCollab.username }}{% if not forloop.last %}, {% endif %}
     {% endfor %}
-    <br> (par invitation)
   </div>
 {% endif %}
 {% endblock %}

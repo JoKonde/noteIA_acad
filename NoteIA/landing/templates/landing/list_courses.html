@@ -14,18 +14,29 @@
       </tr>
     </thead>
     <tbody>
-      {% for course in courses %}
+      {% for item in course_list %}
       <tr>
-        <td>{{ course.nom }}</td>
-        <td>{{ course.description }}</td>
         <td>
-          <a class="btn btn-secondary btn-sm" href="{% url 'edit_course' course.id %}">Modifier</a>
-          <a class="btn btn-danger btn-sm" href="{% url 'delete_course' course.id %}" onclick="return confirm('Voulez-vous vraiment supprimer ce cours ?');">Supprimer</a>
+          {{ item.cours.nom }}
+          {% if item.invited %}
+            <br><span class="text-success fst-italic">Par invitation</span>
+          {% endif %}
+        </td>
+        <td>{{ item.cours.description }}</td>
+        <td>
+          <a class="btn btn-info btn-sm" href="{% url 'list_notes' item.cours.id %}">Voir notes</a>
+          {% if not item.invited %}
+            <a class="btn btn-secondary btn-sm" href="{% url 'edit_course' item.cours.id %}">Modifier</a>
+            <a class="btn btn-danger btn-sm" href="{% url 'delete_course' item.cours.id %}"
+               onclick="return confirm('Voulez-vous vraiment supprimer ce cours ?');">
+              Supprimer
+            </a>
+          {% endif %}
         </td>
       </tr>
       {% empty %}
       <tr>
-        <td colspan="3">Aucun cours créé.</td>
+        <td colspan="3">Aucun cours disponible.</td>
       </tr>
       {% endfor %}
     </tbody>
