@@ -1,4 +1,5 @@
 {% extends "landing/dashboard.html" %}
+{% load static %}
 {% block content %}
 <style>
   .textnote-card {
@@ -66,6 +67,7 @@
       <a class="btn" href="{% url 'invite_collaborators' note.id %}">Inviter</a>
     {% endif %}
     <a class="btn" href="{% url 'create_textnote' note.id %}">Ajouter un texte</a>
+    <a class="btn btn-info" href="{% url 'create_imagenote' note.id %}">Ajouter une image</a>
   </div>
 </div>
 
@@ -86,6 +88,59 @@
   <p>Aucun texte ajouté pour cette note.</p>
 {% endfor %}
 
+
+
+
+<h3>Images</h3>
+<div class="d-flex flex-wrap gap-3">
+  {% for img in imagenotes %}
+    <div class="card position-relative" style="width:12rem;">
+      
+      <!-- Croix de suppression -->
+      <form
+        method="POST"
+        action="{% url 'delete_imagenote' img.id %}"
+        style="position:absolute; top:0.5rem; right:0.5rem; z-index:10;"
+        onsubmit="return confirm('Voulez-vous vraiment supprimer cette image ?');"
+      >
+        {% csrf_token %}
+        <button
+          type="submit"
+          class="btn btn-sm btn-danger"
+          style="width:1.5rem; height:1.5rem; padding:0; line-height:1;"
+          aria-label="Supprimer"
+        >&times;</button>
+      </form>
+
+      <!-- Lightbox / vignette -->
+      <a
+        href="{% static img.path %}"
+        class="glightbox"
+        data-gallery="note-{{ note.id }}"
+      >
+        <img
+          src="{% static img.path %}"
+          class="card-img-top"
+          alt="ImageNote"
+          style="object-fit:cover; height:8rem;"
+        >
+      </a>
+
+      <div class="card-body py-2 px-2">
+        <small>
+          Par {{ img.userEditeur.username }}<br>
+          {{ img.date|date:"d/m/Y H:i" }}
+        </small>
+      </div>
+    </div>
+  {% empty %}
+    <p>Aucune image pour cette note.</p>
+  {% endfor %}
+</div>
+
+
+
+
 {% if is_owner and collaborators %}
   <div class="collab-info">
     Invité(s) : 
@@ -94,4 +149,18 @@
     {% endfor %}
   </div>
 {% endif %}
+
+
+<!-- initialisation de GLightbox -->
+<script src="{% static 'vendor/glightbox/js/glightbox.min.js' %}"></script>
+<script>
+  const lightbox = GLightbox({
+    selector: '.glightbox',
+    zoomable: true,
+    loop: false,
+    touchNavigation: true,
+    keyboardNavigation: true,
+  });
+</script>
+
 {% endblock %}

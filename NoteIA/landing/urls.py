@@ -26,4 +26,7 @@ urlpatterns = [
     path('note/<int:note_id>/edit/', views.edit_note, name='edit_note'),
     path('note/<int:note_id>/delete/', views.delete_note, name='delete_note'),
     
+    path('note/<int:note_id>/create-image/', views.create_imagenote, name='create_imagenote'),
+    path('image/<int:image_id>/delete/', views.delete_imagenote, name='delete_imagenote'),
+    
 ]

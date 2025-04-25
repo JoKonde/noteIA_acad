@@ -1,13 +1,13 @@
 import random
 from django.shortcuts import render, redirect
 from django.contrib import messages
-from .models import CustomUser, Contact, Cours,Note,Collaborateur,TextNote
+from .models import CustomUser, Contact, Cours,Note,Collaborateur,TextNote,ImageNote
 import jwt
 import os
 import datetime
 from django.conf import settings
 from django.db.models import Q
-
+from django.utils import timezone
 from django.shortcuts import get_object_or_404
 
 JWT_SECRET = os.environ.get('JWT_SECRET', 'lumiere_du_monde')
@@ -337,12 +337,14 @@ def note_detail(request, note_id):
         return redirect('dashboard')
 
     textnotes = TextNote.objects.filter(note=note)
+    imagenotes = ImageNote.objects.filter(note=note)
     collaborators = Collaborateur.objects.filter(note=note)
     invited = not is_owner  # si je ne suis pas owner, j'y suis invité
 
     return render(request, 'landing/note_detail.html', {
         'note': note,
         'textnotes': textnotes,
+        'imagenotes': imagenotes, 
         'collaborators': collaborators,
         'invited': invited,
         'is_owner': is_owner,
@@ -465,6 +467,87 @@ def delete_note(request, note_id):
         'note': note,
         'user_contact': user.contact
     })
+
+
+
+
+def create_imagenote(request, note_id):
+    user = get_current_user(request)
+    if not user:
+        messages.error(request, "Vous devez être connecté pour ajouter une image.")
+        return redirect('login')
+
+    note = get_object_or_404(Note, id=note_id)
+    # autorisation owner ou collaborateur
+    is_collab = Collaborateur.objects.filter(note=note, userCollab=user).exists()
+    if note.userOwner != user and not is_collab:
+        messages.error(request, "Vous n'avez pas le droit d'ajouter une image à cette note.")
+        return redirect('dashboard')
+
+    if request.method == "POST":
+        uploaded = request.FILES.get('image')
+        if not uploaded:
+            messages.error(request, "Veuillez sélectionner une image.")
+            return render(request, 'landing/create_imagenote.html', {'note': note, 'user_contact': user.contact})
+
+         # Extension et nom de fichier unique
+        ext = os.path.splitext(uploaded.name)[1]
+        filename = f"{note.id}_{int(timezone.now().timestamp())}{ext}"
+
+        # Répertoire de destination : landing/templates/landing/assets/img
+        assets_dir = os.path.join(settings.BASE_DIR, 'landing', 'templates', 'landing', 'assets', 'img')
+        os.makedirs(assets_dir, exist_ok=True)
+
+        save_path = os.path.join(assets_dir, filename)
+        rel_path = f"img/{filename}"
+
+
+        # Sauvegarder le fichier sur le disque
+        with open(save_path, 'wb') as f:
+            for chunk in uploaded.chunks():
+                f.write(chunk)
+
+        # Enregistrer en base
+        ImageNote.objects.create(note=note, path=rel_path, userEditeur=user)
+        messages.success(request, "Image ajoutée avec succès !")
+        return redirect('note_detail', note_id=note.id)
+
+    return render(request, 'landing/create_imagenote.html', {'note': note, 'user_contact': user.contact})
+
+def delete_imagenote(request, image_id):
+    user = get_current_user(request)
+    if not user:
+        messages.error(request, "Vous devez être connecté pour supprimer une image.")
+        return redirect('login')
+
+    img = get_object_or_404(ImageNote, id=image_id)
+    note = img.note
+
+    # Vérification d'accès : owner ou collaborateur
+    is_owner = note.userOwner == user
+    is_collab = Collaborateur.objects.filter(note=note, userCollab=user).exists()
+    if not (is_owner or is_collab):
+        messages.error(request, "Vous n'avez pas le droit de supprimer cette image.")
+        return redirect('note_detail', note_id=note.id)
+
+    if request.method == "POST":
+        # Construire le chemin réel du fichier
+        file_path = os.path.join(
+            settings.BASE_DIR,
+            'landing', 'templates', 'landing', 'assets',
+            img.path.replace('img/', 'img' + os.sep)  # adapte les slashes
+        )
+        # Supprimer le fichier s'il existe
+        if os.path.exists(file_path):
+            os.remove(file_path)
+        # Supprimer l'enregistrement
+        img.delete()
+        messages.success(request, "Image supprimée avec succès !")
+        return redirect('note_detail', note_id=note.id)
+
+    # Si on tombe ici en GET, on renvoie simplement au détail
+    return redirect('note_detail', note_id=note.id)
+
 
 def custom_404(request, exception):
     return render(request, 'landing/404.html', status=404)

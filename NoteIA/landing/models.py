@@ -96,3 +96,14 @@ class Collaborateur(models.Model):
 
     def __str__(self):
         return f"Collaborateur {self.userCollab.username} on {self.note.titre}"
+    
+    
+    
+class ImageNote(models.Model):
+    note = models.ForeignKey(Note, on_delete=models.CASCADE)
+    path = models.CharField(max_length=200)   # ex. "img/ma_photo.png"
+    date = models.DateTimeField(default=timezone.now)
+    userEditeur = models.ForeignKey('CustomUser', on_delete=models.CASCADE)
+
+    def __str__(self):
+        return f"ImageNote for {self.note.titre} by {self.userEditeur.username}"

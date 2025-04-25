@@ -1,0 +1,36 @@
+{% extends "landing/dashboard.html" %}
+{% block content %}
+<style>
+  form.upload-image {
+    max-width: 400px;
+    margin: 2rem auto;
+    padding: 1.5rem;
+    background: #f9f9f9;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    text-align: center;
+  }
+  form.upload-image input[type="file"] {
+    margin-bottom: 1rem;
+  }
+  form.upload-image button {
+    background: #2A4B7E;
+    color: #fff;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 5px;
+    cursor: pointer;
+  }
+  form.upload-image button:hover {
+    background: #1E3A5A;
+  }
+</style>
+
+<h2>Ajouter une image à « {{ note.titre }} »</h2>
+<form method="POST" enctype="multipart/form-data" class="upload-image">
+  {% csrf_token %}
+  <input type="file" name="image" accept="image/*" required>
+  <br>
+  <button type="submit">Ajouter l'image</button>
+</form>
+{% endblock %}
