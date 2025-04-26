@@ -49,7 +49,7 @@ def login(request):
         response.set_cookie('jwt', token)
         messages.success(request, "Connexion réussie !")
         return response
-
+    
     return render(request, 'landing/login.html')
 
 
