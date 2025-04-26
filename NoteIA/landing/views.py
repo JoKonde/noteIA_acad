@@ -1,7 +1,7 @@
 import random
 from django.shortcuts import render, redirect
 from django.contrib import messages
-from .models import CustomUser, Contact, Cours,Note,Collaborateur,TextNote,ImageNote
+from .models import CustomUser, Contact, Cours,Note,Collaborateur,TextNote,ImageNote,PdfNote
 import jwt
 import os
 import datetime
@@ -13,6 +13,7 @@ from django.shortcuts import get_object_or_404
 JWT_SECRET = os.environ.get('JWT_SECRET', 'lumiere_du_monde')
 JWT_ALGORITHM = 'HS256'
 JWT_EXP_DELTA_SECONDS = 3600  # 1 heure
+
 
 def index(request):
     return render(request, 'landing/index.html')
@@ -338,6 +339,7 @@ def note_detail(request, note_id):
 
     textnotes = TextNote.objects.filter(note=note)
     imagenotes = ImageNote.objects.filter(note=note)
+    pdfnotes = PdfNote.objects.filter(note=note)
     collaborators = Collaborateur.objects.filter(note=note)
     invited = not is_owner  # si je ne suis pas owner, j'y suis invité
 
@@ -345,6 +347,7 @@ def note_detail(request, note_id):
         'note': note,
         'textnotes': textnotes,
         'imagenotes': imagenotes, 
+        'pdfnotes': pdfnotes, 
         'collaborators': collaborators,
         'invited': invited,
         'is_owner': is_owner,
@@ -546,6 +549,94 @@ def delete_imagenote(request, image_id):
         return redirect('note_detail', note_id=note.id)
 
     # Si on tombe ici en GET, on renvoie simplement au détail
+    return redirect('note_detail', note_id=note.id)
+
+
+def create_pdfnote(request, note_id):
+    user = get_current_user(request)
+    if not user:
+        messages.error(request, "Connectez-vous pour ajouter un PDF.")
+        return redirect('login')
+
+    note = get_object_or_404(Note, id=note_id)
+    # Autorisation owner ou collaborateur
+    is_collab = Collaborateur.objects.filter(note=note, userCollab=user).exists()
+    if note.userOwner != user and not is_collab:
+        messages.error(request, "Vous n’avez pas le droit d’ajouter un PDF à cette note.")
+        return redirect('dashboard')
+
+    if request.method == "POST":
+        uploaded = request.FILES.get('pdf')
+        if not uploaded or not uploaded.name.lower().endswith('.pdf'):
+            messages.error(request, "Veuillez sélectionner un fichier PDF.")
+            return render(request, 'landing/create_pdfnote.html', {
+                'note': note,
+                'user_contact': user.contact
+            })
+
+        # Générer un nom unique
+        ext = '.pdf'
+        filename = f"{note.id}_{int(timezone.now().timestamp())}{ext}"
+
+        # Chemin de sauvegarde : landing/templates/landing/assets/pdf
+        assets_dir = os.path.join(
+            settings.BASE_DIR,
+            'landing', 'templates', 'landing', 'assets', 'pdf'
+        )
+        os.makedirs(assets_dir, exist_ok=True)
+
+        save_path = os.path.join(assets_dir, filename)
+        rel_path = f"pdf/{filename}"
+
+        # Sauvegarde du fichier
+        with open(save_path, 'wb') as f:
+            for chunk in uploaded.chunks():
+                f.write(chunk)
+
+        # Enregistrement en base
+        PdfNote.objects.create(
+            note=note,
+            path=rel_path,
+            userEditeur=user
+        )
+        messages.success(request, "PDF ajouté avec succès !")
+        return redirect('note_detail', note_id=note.id)
+
+    return render(request, 'landing/create_pdfnote.html', {
+        'note': note,
+        'user_contact': user.contact
+    })
+
+
+def delete_pdfnote(request, pdf_id):
+    user = get_current_user(request)
+    if not user:
+        messages.error(request, "Connectez-vous pour supprimer un PDF.")
+        return redirect('login')
+
+    pdf = get_object_or_404(PdfNote, id=pdf_id)
+    note = pdf.note
+
+    # Autorisation owner ou collaborateur
+    is_owner = (note.userOwner == user)
+    is_collab = Collaborateur.objects.filter(note=note, userCollab=user).exists()
+    if not (is_owner or is_collab):
+        messages.error(request, "Vous n’avez pas le droit de supprimer ce PDF.")
+        return redirect('note_detail', note_id=note.id)
+
+    if request.method == "POST":
+        # Supprime le fichier sur le disque
+        file_path = os.path.join(
+            settings.BASE_DIR,
+            'landing', 'templates', 'landing', 'assets', pdf.path.replace('/', os.sep)
+        )
+        if os.path.exists(file_path):
+            os.remove(file_path)
+        pdf.delete()
+        messages.success(request, "PDF supprimé avec succès !")
+        return redirect('note_detail', note_id=note.id)
+
+    # Pas de page de confirmation dédiée, on redirige
     return redirect('note_detail', note_id=note.id)
 
 

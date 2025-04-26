@@ -29,4 +29,7 @@ urlpatterns = [
     path('note/<int:note_id>/create-image/', views.create_imagenote, name='create_imagenote'),
     path('image/<int:image_id>/delete/', views.delete_imagenote, name='delete_imagenote'),
     
+    path('note/<int:note_id>/create-pdf/', views.create_pdfnote, name='create_pdfnote'),
+    path('pdf/<int:pdf_id>/delete/', views.delete_pdfnote, name='delete_pdfnote'),
+    
 ]

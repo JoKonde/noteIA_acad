@@ -15,11 +15,21 @@
     color: #333;
     line-height: 1.5;
   }
+  .header-section .btn + .btn {
+    margin-left: 0.5rem;
+  }
   .header-section {
     display: flex;
     justify-content: space-between;
     align-items: center;
     margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+  }
+  .header-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.5rem;  /* pour que "Ajouter PDF" tombe un peu plus bas */
   }
   .btn {
     padding: 0.5rem 0.75rem;
@@ -63,11 +73,24 @@
   {% endif %}
 
   <div>
-    {% if is_owner %}
-      <a class="btn" href="{% url 'invite_collaborators' note.id %}">Inviter</a>
-    {% endif %}
-    <a class="btn" href="{% url 'create_textnote' note.id %}">Ajouter un texte</a>
-    <a class="btn btn-info" href="{% url 'create_imagenote' note.id %}">Ajouter une image</a>
+    <div class="header-actions">
+      {% if is_owner %}
+        <a class="btn btn-secondary" href="{% url 'invite_collaborators' note.id %}">
+          <i class="bi bi-person-plus"></i> Inviter
+        </a>
+      {% endif %}
+      <a class="btn btn-primary" href="{% url 'create_textnote' note.id %}">
+        <i class="bi bi-pencil-square"></i> Ajouter un texte
+      </a>
+      <a class="btn btn-info" href="{% url 'create_imagenote' note.id %}">
+        <i class="bi bi-card-image"></i> Ajouter une image
+      </a>
+    </div>
+    <div class="header-actions">
+      <a class="btn btn-danger" href="{% url 'create_pdfnote' note.id %}">
+        <i class="bi bi-file-earmark-pdf-fill"></i> Ajouter un PDF
+      </a>
+    </div>
   </div>
 </div>
 
@@ -137,6 +160,73 @@
     <p>Aucune image pour cette note.</p>
   {% endfor %}
 </div>
+
+
+<h3>PDFs</h3>
+<div class="d-flex flex-wrap gap-3">
+  {% for pdf in pdfnotes %}
+    <div class="card position-relative" style="width:12rem;">
+      <!-- Croix de suppression -->
+      <form method="POST"
+            action="{% url 'delete_pdfnote' pdf.id %}"
+            style="position:absolute; top:0.5rem; right:0.5rem; z-index:10;"
+            onsubmit="return confirm('Supprimer ce PDF ?');">
+        {% csrf_token %}
+        <button type="submit"
+                class="btn btn-sm btn-danger"
+                style="width:1.5rem; height:1.5rem; padding:0; line-height:1;"
+                aria-label="Supprimer PDF">
+          &times;
+        </button>
+      </form>
+
+      <!-- Bouton lire -->
+      <div class="card-body p-2 text-center">
+        <i class="bi bi-file-earmark-pdf-fill"
+           style="font-size:2rem; color:#d9534f;"></i>
+        <p class="mt-2 mb-1" style="font-size:.9rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+          {{ pdf.path|slice:"4:" }}  {# affiche juste le nom sans "pdf/" #}
+        </p>
+        <button class="btn btn-outline-primary btn-sm"
+                data-bs-toggle="modal"
+                data-bs-target="#pdfModal{{ pdf.id }}">
+          Lire
+        </button>
+      </div>
+      <div class="card-body py-2 px-2">
+        <small>
+          Par {{ pdf.userEditeur.username }}<br>
+          {{ pdf.date|date:"d/m/Y H:i" }}
+        </small>
+      </div>
+    </div>
+
+    <!-- Modal PDF -->
+    <div class="modal fade" id="pdfModal{{ pdf.id }}" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">{{ pdf.path|slice:"4:" }}</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body p-0">
+            <iframe
+              src="{% static pdf.path %}"
+              width="100%"
+              height="600px"
+              style="border:none;"
+            ></iframe>
+          </div>
+        </div>
+      </div>
+    </div>
+  {% empty %}
+    <p>Aucun PDF ajouté pour cette note.</p>
+  {% endfor %}
+</div>
+
+{# N’oubliez pas de charger les PdfNotes en vue #}
+
 
 
 
