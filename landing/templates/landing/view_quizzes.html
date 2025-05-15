@@ -101,82 +101,73 @@
                             <!-- Les questions seront insérées ici par JavaScript -->
                         </div>
                     </div>
-
-                    <script>
-                        // Stocker le contenu du quiz pour JavaScript
-                        document.addEventListener('DOMContentLoaded', function() {
-                            try {
-                                const quizContent_{{ quiz.id }} = {{ quiz.contenu|safe }};
-                                
-                                // Fonction pour démarrer le quiz
-                                window.startQuiz_{{ quiz.id }} = function() {
-                                    const questionsContainer = document.getElementById('questions-{{ quiz.id }}');
-                                    questionsContainer.classList.remove('hidden');
-                                    document.querySelector('#quiz-{{ quiz.id }} button').classList.add('hidden');
-                                    
-                                    // Afficher les questions
-                                    questionsContainer.innerHTML = '';
-                                    
-                                    quizContent_{{ quiz.id }}.questions.forEach((q, index) => {
-                                        const questionEl = document.createElement('div');
-                                        questionEl.className = 'question';
-                                        
-                                        let optionsHtml = '';
-                                        if (q.type === 'qcm' || q.type === 'vrai_faux') {
-                                            optionsHtml = `<div class="options">`;
-                                            q.options.forEach((option, i) => {
-                                                optionsHtml += `
-                                                    <div class="option form-check">
-                                                        <input class="form-check-input" type="radio" name="q${index}" id="q${index}o${i}" value="${option}">
-                                                        <label class="form-check-label" for="q${index}o${i}">${option}</label>
-                                                    </div>
-                                                `;
-                                            });
-                                            optionsHtml += `</div>`;
-                                        } else {
-                                            // Question à réponse courte
-                                            optionsHtml = `
-                                                <div class="form-group">
-                                                    <input type="text" class="form-control" id="q${index}answer" placeholder="Votre réponse">
-                                                </div>
-                                            `;
-                                        }
-                                        
-                                        questionEl.innerHTML = `
-                                            <div class="question-text">${index + 1}. ${q.question}</div>
-                                            ${optionsHtml}
-                                            <button class="btn btn-sm btn-primary answer-btn" onclick="showAnswer('{{ quiz.id }}', ${index})">Vérifier la réponse</button>
-                                            <div class="answer hidden" id="answer-{{ quiz.id }}-${index}">
-                                                <strong>Réponse correcte:</strong> ${q.reponse}
-                                                <div class="explanation">${q.explication}</div>
-                                            </div>
-                                        `;
-                                        
-                                        questionsContainer.appendChild(questionEl);
-                                    });
-                                };
-                                
-                                // Fonction globale pour afficher les réponses
-                                if (!window.showAnswer) {
-                                    window.showAnswer = function(quizId, questionIndex) {
-                                        document.getElementById(`answer-${quizId}-${questionIndex}`).classList.remove('hidden');
-                                    };
-                                }
-                                
-                                // Fonction globale pour démarrer le quiz
-                                if (!window.startQuiz) {
-                                    window.startQuiz = function(quizId) {
-                                        window[`startQuiz_${quizId}`]();
-                                    };
-                                }
-                            } catch (e) {
-                                console.error('Erreur de parsing JSON pour le quiz', e);
-                                document.getElementById('quiz-{{ quiz.id }}').innerHTML = '<div class="alert alert-danger">Erreur lors du chargement du quiz. Format incorrect.</div>';
-                            }
-                        });
-                    </script>
                 </div>
+
+                <script>
+                    // Store questions as a JavaScript object for this quiz
+                    var quizQuestions_{{ quiz.id }} = {{ quiz.questions|safe }};
+                    
+                    // Function to start this quiz
+                    function startQuiz_{{ quiz.id }}() {
+                        const questionsContainer = document.getElementById('questions-{{ quiz.id }}');
+                        questionsContainer.classList.remove('hidden');
+                        document.querySelector('#quiz-{{ quiz.id }} button').classList.add('hidden');
+                        
+                        // Display the questions
+                        questionsContainer.innerHTML = '';
+                        
+                        quizQuestions_{{ quiz.id }}.forEach((q, index) => {
+                            const questionEl = document.createElement('div');
+                            questionEl.className = 'question';
+                            
+                            let optionsHtml = '';
+                            if (q.type === 'qcm' || q.type === 'vrai_faux') {
+                                optionsHtml = `<div class="options">`;
+                                q.options.forEach((option, i) => {
+                                    optionsHtml += `
+                                        <div class="option form-check">
+                                            <input class="form-check-input" type="radio" name="q${index}" id="q${index}o${i}" value="${option}">
+                                            <label class="form-check-label" for="q${index}o${i}">${option}</label>
+                                        </div>
+                                    `;
+                                });
+                                optionsHtml += `</div>`;
+                            } else {
+                                // Short answer question
+                                optionsHtml = `
+                                    <div class="form-group">
+                                        <input type="text" class="form-control" id="q${index}answer" placeholder="Votre réponse">
+                                    </div>
+                                `;
+                            }
+                            
+                            questionEl.innerHTML = `
+                                <div class="question-text">${index + 1}. ${q.question}</div>
+                                ${optionsHtml}
+                                <button class="btn btn-sm btn-primary answer-btn" onclick="showAnswer('{{ quiz.id }}', ${index})">Vérifier la réponse</button>
+                                <div class="answer hidden" id="answer-{{ quiz.id }}-${index}">
+                                    <strong>Réponse correcte:</strong> ${q.reponse}
+                                    <div class="explanation">${q.explication}</div>
+                                </div>
+                            `;
+                            
+                            questionsContainer.appendChild(questionEl);
+                        });
+                    }
+                </script>
             {% endfor %}
+
+            <!-- Global quiz functions -->
+            <script>
+                function showAnswer(quizId, questionIndex) {
+                    document.getElementById(`answer-${quizId}-${questionIndex}`).classList.remove('hidden');
+                }
+                
+                function startQuiz(quizId) {
+                    // Call the specific quiz's start function
+                    window[`startQuiz_${quizId}`]();
+                }
+            </script>
         {% else %}
             <div class="alert alert-info">
                 Aucun quiz n'a encore été généré pour cette note.

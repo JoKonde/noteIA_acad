@@ -175,12 +175,12 @@
       }
 
       .eden-menu .menu-link {
-        color: white;
+        color: white !important;
       }
 
       .eden-menu .menu-link:hover {
         background-color: rgba(42, 75, 126, 0.3);
-        color: white;
+        color: white !important;
       }
 
       /* Dialogue Eden */
@@ -414,7 +414,7 @@
             </li>
             <!-- Eden Assistant -->
             <li class="menu-item eden-menu">
-              <a href="{% url 'eden_chat' %}" class="menu-link">
+              <a href="#" onclick="toggleEdenDialog(event)" class="menu-link">
                 <i class="bi bi-robot me-2"></i>
                 Eden Assistant
               </a>
@@ -491,9 +491,9 @@
     </div>
 
     <!-- Bouton flottant Eden -->
-    <a href="javascript:void(0)" class="eden-floating-button" id="eden-button">
+    <div class="eden-floating-button" id="eden-button" onclick="toggleEdenDialog(event)">
       <i class="bi bi-robot"></i>
-    </a>
+    </div>
 
     <!-- Dialogue Eden -->
     <div class="eden-chat-dialog" id="eden-dialog">
@@ -559,6 +559,16 @@
           });
         });
 
+      // Fonction pour ouvrir/fermer le dialogue Eden
+      function toggleEdenDialog(e) {
+        e.preventDefault();
+        const edenDialog = document.getElementById('eden-dialog');
+        edenDialog.classList.toggle('active');
+        if (edenDialog.classList.contains('active')) {
+          document.getElementById('eden-input').focus();
+        }
+      }
+
       // Eden Chat Dialog
       document.addEventListener('DOMContentLoaded', function() {
         const edenButton = document.getElementById('eden-button');
@@ -567,14 +577,6 @@
         const edenInput = document.getElementById('eden-input');
         const edenSend = document.getElementById('eden-send');
         const edenMessages = document.getElementById('eden-messages');
-
-        edenButton.addEventListener('click', function(e) {
-          e.preventDefault();
-          edenDialog.classList.toggle('active');
-          if (edenDialog.classList.contains('active')) {
-            edenInput.focus();
-          }
-        });
 
         edenClose.addEventListener('click', function() {
           edenDialog.classList.remove('active');

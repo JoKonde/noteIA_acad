@@ -351,6 +351,11 @@ def note_detail(request, note_id):
     imagenotes = ImageNote.objects.filter(note=note).order_by('-date')
     pdfnotes = PdfNote.objects.filter(note=note).order_by('-date')
     
+    # Récupérer les données audio, vidéo et OCR
+    audionotes = AudioNote.objects.filter(note=note).order_by('-date')
+    videonotes = VideoNote.objects.filter(note=note).order_by('-date')
+    ocrnotes = OcrNote.objects.filter(note=note).order_by('-date')
+    
     # Récupérer les collaborateurs si l'utilisateur est le propriétaire
     collaborators = None
     if is_owner:
@@ -361,6 +366,9 @@ def note_detail(request, note_id):
         'textnotes': textnotes,
         'imagenotes': imagenotes,
         'pdfnotes': pdfnotes,
+        'audionotes': audionotes,
+        'videonotes': videonotes,
+        'ocrnotes': ocrnotes,
         'is_owner': is_owner,
         'invited': not is_owner and is_collaborator,
         'collaborators': collaborators
@@ -911,6 +919,17 @@ Voici le texte:
                 quiz_data = json.loads(quiz_content)
                 questions_data = quiz_data.get("questions", [])
                 
+                # Vérifier que questions_data n'est pas vide
+                if not questions_data:
+                    # Utilisé un dictionnaire par défaut avec un message d'erreur
+                    questions_data = [{
+                        "question": "Erreur de génération du quiz",
+                        "type": "qcm",
+                        "options": ["Option A", "Option B"],
+                        "reponse": "Option A",
+                        "explication": "Le modèle n'a pas généré de questions valides."
+                    }]
+                
                 # Déterminer la version du quiz
                 latest_version = QuizNote.objects.filter(note=note, userEditeur=user).order_by('-version').first()
                 version = 1 if not latest_version else latest_version.version + 1
@@ -919,7 +938,7 @@ Voici le texte:
                 quiz = QuizNote(
                     note=note,
                     contenu=quiz_content,
-                    questions=questions_data,  # Ajout des questions extraites
+                    questions=questions_data,  # Toujours un tableau non vide maintenant
                     userEditeur=user,
                     version=version
                 )
@@ -928,22 +947,30 @@ Voici le texte:
                 messages.success(request, "Quiz généré avec succès !")
                 return redirect('view_quizzes', note_id=note_id)
             except json.JSONDecodeError:
-                # Si le JSON est invalide, on utilise un dict vide pour questions
+                # En cas d'erreur JSON, créer un quiz avec une question par défaut
+                default_questions = [{
+                    "question": "Erreur de génération du quiz",
+                    "type": "qcm",
+                    "options": ["Option A", "Option B"],
+                    "reponse": "Option A",
+                    "explication": "Le modèle a généré une réponse qui n'est pas au format JSON valide."
+                }]
+                
                 # Déterminer la version du quiz
                 latest_version = QuizNote.objects.filter(note=note, userEditeur=user).order_by('-version').first()
                 version = 1 if not latest_version else latest_version.version + 1
                 
-                # Enregistrer le quiz avec un dict vide pour questions
+                # Enregistrer le quiz avec les questions par défaut
                 quiz = QuizNote(
                     note=note,
                     contenu=quiz_content,
-                    questions={},  # Dict vide en cas d'erreur
+                    questions=default_questions,  # Utiliser nos questions par défaut
                     userEditeur=user,
                     version=version
                 )
                 quiz.save()
                 
-                messages.warning(request, "Quiz généré mais avec un format incorrect. Veuillez réessayer.")
+                messages.warning(request, "Quiz généré mais avec un format incorrect. Une version simplifiée a été créée.")
                 return redirect('view_quizzes', note_id=note_id)
         else:
             messages.error(request, f"Erreur lors de la génération du quiz: {response.text}")

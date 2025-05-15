@@ -308,6 +308,18 @@
       <a class="btn btn-danger" href="{% url 'create_pdfnote' note.id %}">
         <i class="bi bi-file-earmark-pdf-fill"></i> Ajouter un PDF
       </a>
+      <a class="btn btn-primary" href="{% url 'create_audionote' note.id %}">
+        <i class="bi bi-mic-fill"></i> Ajouter un audio
+      </a>
+      <a class="btn btn-info" href="{% url 'create_videonote' note.id %}">
+        <i class="bi bi-camera-video-fill"></i> Ajouter une vidéo
+      </a>
+    </div>
+    
+    <div class="action-group">
+      <a class="btn btn-success" href="{% url 'create_ocrnote' note.id %}">
+        <i class="bi bi-image-alt"></i> Ajouter un OCR
+      </a>
       <a class="btn ai-btn" href="{% url 'generate_resume' note.id %}">
         <i class="bi bi-magic"></i> Résumer
       </a>
@@ -434,6 +446,153 @@
     </div>
   {% empty %}
     <p class="empty-message">Aucun PDF ajouté pour cette note.</p>
+  {% endfor %}
+</div>
+
+<h3 class="section-title"><i class="bi bi-mic-fill me-2"></i>Audios</h3>
+<div class="media-container">
+  {% for audio in audionotes %}
+    <div class="media-card">
+      <form method="POST"
+            action="{% url 'delete_audionote' audio.id %}"
+            onsubmit="return confirm('Supprimer cet audio ?');">
+        {% csrf_token %}
+        <button type="submit"
+                class="delete-btn"
+                aria-label="Supprimer audio">
+          &times;
+        </button>
+      </form>
+
+      <div class="media-content text-center py-3">
+        <i class="bi bi-file-earmark-music"
+           style="font-size: 2.5rem; color:#0d6efd;"></i>
+        <p class="media-title">
+          {{ audio.titre }}
+        </p>
+        <div class="media-info mb-2">
+          <div><i class="bi bi-person-circle me-1"></i> {{ audio.userEditeur.username }}</div>
+          <div><i class="bi bi-clock me-1"></i> {{ audio.date|date:"d/m/Y H:i" }}</div>
+        </div>
+        <audio controls class="w-100 mt-2">
+          <source src="{% static audio.path %}" type="audio/mpeg">
+          Votre navigateur ne supporte pas l'élément audio.
+        </audio>
+      </div>
+    </div>
+  {% empty %}
+    <p class="empty-message">Aucun audio ajouté pour cette note.</p>
+  {% endfor %}
+</div>
+
+<h3 class="section-title"><i class="bi bi-camera-video-fill me-2"></i>Vidéos</h3>
+<div class="media-container">
+  {% for video in videonotes %}
+    <div class="media-card" style="width: 100%; max-width: 320px;">
+      <form method="POST"
+            action="{% url 'delete_videonote' video.id %}"
+            onsubmit="return confirm('Supprimer cette vidéo ?');">
+        {% csrf_token %}
+        <button type="submit"
+                class="delete-btn"
+                aria-label="Supprimer vidéo">
+          &times;
+        </button>
+      </form>
+
+      <div class="media-content">
+        <p class="media-title">
+          {{ video.titre }}
+        </p>
+        
+        <div class="media-thumbnail">
+          {% if video.thumbnail %}
+            <img src="{% static video.thumbnail %}" alt="{{ video.titre }}" class="img-fluid">
+          {% else %}
+            <div style="height: 150px; background-color: #eee; display: flex; align-items: center; justify-content: center;">
+              <i class="bi bi-camera-video" style="font-size: 3rem; color: #aaa;"></i>
+            </div>
+          {% endif %}
+        </div>
+        
+        <div class="media-info mb-2 mt-2">
+          <div><i class="bi bi-person-circle me-1"></i> {{ video.userEditeur.username }}</div>
+          <div><i class="bi bi-clock me-1"></i> {{ video.date|date:"d/m/Y H:i" }}</div>
+        </div>
+        
+        <button class="btn btn-sm btn-primary w-100"
+                data-bs-toggle="modal"
+                data-bs-target="#videoModal{{ video.id }}">
+          <i class="bi bi-play-fill me-1"></i> Lire la vidéo
+        </button>
+      </div>
+    </div>
+
+    <!-- Modal Video -->
+    <div class="modal fade" id="videoModal{{ video.id }}" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">{{ video.titre }}</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body p-0">
+            <video controls width="100%" height="auto">
+              <source src="{% static video.path %}" type="video/mp4">
+              Votre navigateur ne supporte pas la lecture vidéo.
+            </video>
+          </div>
+        </div>
+      </div>
+    </div>
+  {% empty %}
+    <p class="empty-message">Aucune vidéo ajoutée pour cette note.</p>
+  {% endfor %}
+</div>
+
+<h3 class="section-title"><i class="bi bi-image-alt me-2"></i>OCR (Reconnaissance de texte)</h3>
+<div class="media-container">
+  {% for ocr in ocrnotes %}
+    <div class="media-card" style="width: 100%;">
+      <form method="POST"
+            action="{% url 'delete_ocrnote' ocr.id %}"
+            onsubmit="return confirm('Supprimer cette extraction OCR ?');">
+        {% csrf_token %}
+        <button type="submit"
+                class="delete-btn"
+                aria-label="Supprimer OCR">
+          &times;
+        </button>
+      </form>
+
+      <div class="media-content">
+        <div class="row">
+          {% if ocr.image_path %}
+          <div class="col-md-4">
+            <div class="media-thumbnail mb-3">
+              <img src="{% static ocr.image_path %}" alt="Image OCR" class="img-fluid rounded">
+            </div>
+          </div>
+          {% endif %}
+          <div class="col-md-{% if ocr.image_path %}8{% else %}12{% endif %}">
+            <div class="card">
+              <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-text-paragraph me-2"></i>Texte extrait</span>
+                <small class="text-muted">
+                  <i class="bi bi-person-circle me-1"></i> {{ ocr.userEditeur.username }} - 
+                  <i class="bi bi-clock me-1"></i> {{ ocr.date|date:"d/m/Y H:i" }}
+                </small>
+              </div>
+              <div class="card-body">
+                <p class="card-text">{{ ocr.texte_extrait }}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  {% empty %}
+    <p class="empty-message">Aucune extraction OCR pour cette note.</p>
   {% endfor %}
 </div>
 
