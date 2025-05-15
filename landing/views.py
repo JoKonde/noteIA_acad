@@ -693,10 +693,10 @@ def generate_resume(request, note_id):
     
     try:
         # Récupérer la clé API depuis les variables d'environnement
-        api_key = os.environ.get('openRouterKey')
+        api_key = os.environ.get('OPENROUTER_API_KEY')
         
         if not api_key:
-            messages.error(request, "Clé API non configurée.")
+            messages.error(request, "Clé API OpenRouter non configurée. Veuillez configurer la variable d'environnement OPENROUTER_API_KEY.")
             return redirect('note_detail', note_id=note_id)
         
         # Préparation de la requête à l'API OpenRouter

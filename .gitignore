@@ -1,0 +1,54 @@
+# Fichiers d'environnement contenant des informations sensibles
+.env
+.env.local
+.env.development
+.env.production
+
+# Fichiers de base de données SQLite
+*.sqlite3
+db.sqlite3
+
+# Fichiers de configuration Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Dossiers et fichiers de dépendances
+node_modules/
+venv/
+env/
+ENV/
+
+# Fichiers logs
+*.log
+logs/
+
+# Fichiers de cache
+.cache/
+
+# Fichiers d'IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Fichiers système
+.DS_Store
+Thumbs.db 
