@@ -32,4 +32,8 @@ urlpatterns = [
     path('note/<int:note_id>/create-pdf/', views.create_pdfnote, name='create_pdfnote'),
     path('pdf/<int:pdf_id>/delete/', views.delete_pdfnote, name='delete_pdfnote'),
     
+    # URLs pour les résumés
+    path('note/<int:note_id>/generate-resume/', views.generate_resume, name='generate_resume'),
+    path('note/<int:note_id>/resumes/', views.view_resumes, name='view_resumes'),
+    path('resume/<int:resume_id>/delete/', views.delete_resume, name='delete_resume'),
 ]

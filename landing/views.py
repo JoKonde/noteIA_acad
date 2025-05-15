@@ -1,14 +1,18 @@
 import random
 from django.shortcuts import render, redirect
 from django.contrib import messages
-from .models import CustomUser, Contact, Cours,Note,Collaborateur,TextNote,ImageNote,PdfNote
+from .models import CustomUser, Contact, Cours,Note,Collaborateur,TextNote,ImageNote,PdfNote,TextNoteResume
 import jwt
 import os
 import datetime
+import json
+import requests
 from django.conf import settings
 from django.db.models import Q
 from django.utils import timezone
 from django.shortcuts import get_object_or_404
+from django.http import JsonResponse
+import markdown
 
 JWT_SECRET = os.environ.get('JWT_SECRET', 'lumiere_du_monde')
 JWT_ALGORITHM = 'HS256'
@@ -327,32 +331,40 @@ def create_note(request, course_id):
 def note_detail(request, note_id):
     user = get_current_user(request)
     if not user:
-        messages.error(request, "Vous devez être connecté pour voir cette note.")
+        messages.error(request, "Vous devez être connecté pour voir les détails d'une note.")
         return redirect('login')
-
+    
     note = get_object_or_404(Note, id=note_id)
-    is_owner = (note.userOwner == user)
-    is_collab = Collaborateur.objects.filter(note=note, userCollab=user).exists()
-    if not (is_owner or is_collab):
-        messages.error(request, "Vous n'avez pas accès à cette note.")
+    
+    # Vérifier si l'utilisateur est le propriétaire ou un collaborateur
+    is_owner = note.userOwner == user
+    is_collaborator = Collaborateur.objects.filter(note=note, userCollab=user).exists()
+    
+    if not (is_owner or is_collaborator):
+        messages.error(request, "Vous n'êtes pas autorisé à voir cette note.")
         return redirect('dashboard')
-
-    textnotes = TextNote.objects.filter(note=note)
-    imagenotes = ImageNote.objects.filter(note=note)
-    pdfnotes = PdfNote.objects.filter(note=note)
-    collaborators = Collaborateur.objects.filter(note=note)
-    invited = not is_owner  # si je ne suis pas owner, j'y suis invité
-
-    return render(request, 'landing/note_detail.html', {
+    
+    # Récupérer toutes les données de la note
+    textnotes = TextNote.objects.filter(note=note).order_by('-date')
+    imagenotes = ImageNote.objects.filter(note=note).order_by('-date')
+    pdfnotes = PdfNote.objects.filter(note=note).order_by('-date')
+    
+    # Récupérer les collaborateurs si l'utilisateur est le propriétaire
+    collaborators = None
+    if is_owner:
+        collaborators = Collaborateur.objects.filter(note=note)
+    
+    context = {
         'note': note,
         'textnotes': textnotes,
-        'imagenotes': imagenotes, 
-        'pdfnotes': pdfnotes, 
-        'collaborators': collaborators,
-        'invited': invited,
+        'imagenotes': imagenotes,
+        'pdfnotes': pdfnotes,
         'is_owner': is_owner,
-        'user_contact': user.contact
-    })
+        'invited': not is_owner and is_collaborator,
+        'collaborators': collaborators
+    }
+    
+    return render(request, 'landing/note_detail.html', context)
 
 def create_textnote(request, note_id):
     user = get_current_user(request)
@@ -562,7 +574,7 @@ def create_pdfnote(request, note_id):
     # Autorisation owner ou collaborateur
     is_collab = Collaborateur.objects.filter(note=note, userCollab=user).exists()
     if note.userOwner != user and not is_collab:
-        messages.error(request, "Vous n’avez pas le droit d’ajouter un PDF à cette note.")
+        messages.error(request, "Vous n'avez pas le droit d'ajouter un PDF à cette note.")
         return redirect('dashboard')
 
     if request.method == "POST":
@@ -621,7 +633,7 @@ def delete_pdfnote(request, pdf_id):
     is_owner = (note.userOwner == user)
     is_collab = Collaborateur.objects.filter(note=note, userCollab=user).exists()
     if not (is_owner or is_collab):
-        messages.error(request, "Vous n’avez pas le droit de supprimer ce PDF.")
+        messages.error(request, "Vous n'avez pas le droit de supprimer ce PDF.")
         return redirect('note_detail', note_id=note.id)
 
     if request.method == "POST":
@@ -645,4 +657,144 @@ def custom_404(request, exception):
 
 def custom_500(request):
     return render(request, 'landing/500.html', status=500)
+
+def generate_resume(request, note_id):
+    user = get_current_user(request)
+    if not user:
+        messages.error(request, "Vous devez être connecté pour générer un résumé.")
+        return redirect('login')
+    
+    note = get_object_or_404(Note, id=note_id)
+    
+    # Vérifier si l'utilisateur est le propriétaire ou un collaborateur
+    is_owner = note.userOwner == user
+    is_collaborator = Collaborateur.objects.filter(note=note, userCollab=user).exists()
+    
+    if not (is_owner or is_collaborator):
+        messages.error(request, "Vous n'êtes pas autorisé à générer un résumé pour cette note.")
+        return redirect('dashboard')
+    
+    # Récupérer tous les textes de la note
+    textnotes = TextNote.objects.filter(note=note).order_by('date')
+    
+    if not textnotes:
+        messages.error(request, "Il n'y a pas de texte à résumer dans cette note.")
+        return redirect('note_detail', note_id=note_id)
+    
+    # Concaténer tous les textes
+    all_texts = "\n\n".join([tn.texte for tn in textnotes])
+    
+    # Limiter à 6000 caractères pour éviter de dépasser les limites de l'API
+    if len(all_texts) > 6000:
+        all_texts = all_texts[:6000] + "..."
+    
+    # Préparer le prompt pour le résumé
+    prompt = f"Fais un résumé concis et structuré du texte suivant. Identifie et mets en évidence les points clés:\n\n{all_texts}"
+    
+    try:
+        # Récupérer la clé API depuis les variables d'environnement
+        api_key = os.environ.get('openRouterKey')
+        
+        if not api_key:
+            messages.error(request, "Clé API non configurée.")
+            return redirect('note_detail', note_id=note_id)
+        
+        # Préparation de la requête à l'API OpenRouter
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json"
+        }
+        
+        data = {
+            "model": "deepseek/deepseek-r1:free",
+            "messages": [
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ]
+        }
+        
+        # Envoi de la requête
+        response = requests.post(
+            "https://openrouter.ai/api/v1/chat/completions",
+            headers=headers,
+            json=data
+        )
+        
+        # Récupération de la réponse
+        if response.status_code == 200:
+            result = response.json()
+            resume_text = result["choices"][0]["message"]["content"]
+            # Convertir le résumé Markdown en HTML
+            resume_text = markdown.markdown(resume_text)
+            # Déterminer la version du résumé
+            latest_version = TextNoteResume.objects.filter(note=note, userEditeur=user).order_by('-version').first()
+            version = 1 if not latest_version else latest_version.version + 1
+            # Enregistrer le résumé
+            resume = TextNoteResume(
+                note=note,
+                texte=resume_text,
+                userEditeur=user,
+                version=version
+            )
+            resume.save()
+            
+            messages.success(request, "Résumé généré avec succès !")
+            return redirect('view_resumes', note_id=note_id)
+        else:
+            messages.error(request, f"Erreur lors de la génération du résumé: {response.text}")
+            return redirect('note_detail', note_id=note_id)
+            
+    except Exception as e:
+        messages.error(request, f"Erreur: {str(e)}")
+        return redirect('note_detail', note_id=note_id)
+
+def view_resumes(request, note_id):
+    user = get_current_user(request)
+    if not user:
+        messages.error(request, "Vous devez être connecté pour voir les résumés.")
+        return redirect('login')
+    
+    note = get_object_or_404(Note, id=note_id)
+    
+    # Vérifier si l'utilisateur est le propriétaire ou un collaborateur
+    is_owner = note.userOwner == user
+    is_collaborator = Collaborateur.objects.filter(note=note, userCollab=user).exists()
+    
+    if not (is_owner or is_collaborator):
+        messages.error(request, "Vous n'êtes pas autorisé à voir les résumés de cette note.")
+        return redirect('dashboard')
+    
+    # Récupérer tous les résumés de la note
+    resumes = TextNoteResume.objects.filter(note=note).order_by('-date')
+    
+    context = {
+        'note': note,
+        'resumes': resumes,
+        'is_owner': is_owner,
+        'is_collaborator': is_collaborator
+    }
+    
+    return render(request, 'landing/view_resumes.html', context)
+
+def delete_resume(request, resume_id):
+    user = get_current_user(request)
+    if not user:
+        messages.error(request, "Vous devez être connecté pour supprimer un résumé.")
+        return redirect('login')
+    
+    resume = get_object_or_404(TextNoteResume, id=resume_id)
+    note = resume.note
+    
+    # Vérifier si l'utilisateur est le propriétaire du résumé
+    if resume.userEditeur != user:
+        messages.error(request, "Vous n'êtes pas autorisé à supprimer ce résumé.")
+        return redirect('view_resumes', note_id=note.id)
+    
+    if request.method == "POST":
+        resume.delete()
+        messages.success(request, "Résumé supprimé avec succès !")
+        
+    return redirect('view_resumes', note_id=note.id)
 

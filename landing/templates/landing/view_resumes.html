@@ -1,0 +1,126 @@
+{% extends "landing/dashboard.html" %}
+{% load static %}
+{% block content %}
+<style>
+  .resume-card {
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    position: relative;
+  }
+  .resume-card p {
+    white-space: pre-wrap;
+    color: #333;
+    line-height: 1.5;
+  }
+  .resume-card .delete-form {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+  }
+  .resume-header {
+    margin-bottom: 1rem;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 0.5rem;
+  }
+  .resume-version {
+    background: #4CAF50;
+    color: white;
+    padding: 0.25rem 0.5rem;
+    border-radius: 3px;
+    font-size: 0.8rem;
+    display: inline-block;
+    margin-left: 0.5rem;
+  }
+  .header-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+  }
+  .btn-back {
+    text-decoration: none;
+    color: #2A4B7E;
+    display: flex;
+    align-items: center;
+  }
+  .btn-back i {
+    margin-right: 0.5rem;
+  }
+  .btn-generate {
+    padding: 0.5rem 1rem;
+    background: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    transition: background 0.3s;
+  }
+  .btn-generate:hover {
+    background: #45a049;
+  }
+  .btn-generate i {
+    margin-right: 0.5rem;
+  }
+</style>
+
+<div class="header-actions">
+  <a href="{% url 'note_detail' note.id %}" class="btn-back">
+    <i class="bi bi-arrow-left"></i> Retour à la note
+  </a>
+  <h2>Résumés pour "{{ note.titre }}"</h2>
+  <a href="{% url 'generate_resume' note.id %}" class="btn-generate">
+    <i class="bi bi-magic"></i> Générer un nouveau résumé
+  </a>
+</div>
+
+{% if messages %}
+  <div class="alert-container">
+    {% for message in messages %}
+      <div class="alert {% if message.tags %}alert-{{ message.tags }}{% endif %}" role="alert">
+        {{ message }}
+      </div>
+    {% endfor %}
+  </div>
+{% endif %}
+
+{% for resume in resumes %}
+  <div class="resume-card">
+    {% if resume.userEditeur == request.user %}
+      <form method="POST" action="{% url 'delete_resume' resume.id %}" class="delete-form"
+            onsubmit="return confirm('Voulez-vous vraiment supprimer ce résumé ?');">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-sm btn-danger">
+          <i class="bi bi-trash"></i>
+        </button>
+      </form>
+    {% endif %}
+    
+    <div class="resume-header">
+      <strong>Par {{ resume.userEditeur.username }}</strong>
+      <span class="resume-version">Version {{ resume.version }}</span>
+      <small class="text-muted d-block">
+        {{ resume.date|date:"d/m/Y à H:i" }}
+        {% if resume.userEditeur != note.userOwner %}
+          <span style="color:green; font-style:italic;">(Par invitation)</span>
+        {% endif %}
+      </small>
+    </div>
+    
+    <div class="resume-content">
+      <p>{{ resume.texte|safe }}</p>
+    </div>
+  </div>
+{% empty %}
+  <div class="alert alert-info">
+    Aucun résumé n'a encore été généré pour cette note.
+    <a href="{% url 'generate_resume' note.id %}" class="alert-link">Générer le premier résumé</a>
+  </div>
+{% endfor %}
+
+{% endblock %} 

@@ -1,6 +1,7 @@
 import os
 import base64
 import random
+import uuid
 from django.db import models
 from django.utils import timezone
 from Crypto.Cipher import AES
@@ -117,3 +118,17 @@ class PdfNote(models.Model):
 
     def __str__(self):
         return f"PdfNote for {self.note.titre} by {self.userEditeur.username}"
+
+class TextNoteResume(models.Model):
+    uuid = models.UUIDField(default=uuid.uuid4, editable=False)
+    note = models.ForeignKey(Note, on_delete=models.CASCADE)
+    texte = models.TextField()
+    date = models.DateTimeField(default=timezone.now)
+    userEditeur = models.ForeignKey('CustomUser', on_delete=models.CASCADE)
+    version = models.IntegerField(default=1)
+
+    def __str__(self):
+        return f"Résumé {self.version} pour {self.note.titre} par {self.userEditeur.username}"
+
+    class Meta:
+        unique_together = ('note', 'userEditeur', 'version')

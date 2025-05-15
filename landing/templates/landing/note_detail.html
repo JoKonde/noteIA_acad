@@ -52,6 +52,12 @@
     font-weight: bold;
     margin-top: 1rem;
   }
+  .ai-btn {
+    background: #4CAF50;
+  }
+  .ai-btn:hover {
+    background: #45a049;
+  }
 </style>
 
 <div class="header-section">
@@ -89,6 +95,12 @@
     <div class="header-actions">
       <a class="btn btn-danger" href="{% url 'create_pdfnote' note.id %}">
         <i class="bi bi-file-earmark-pdf-fill"></i> Ajouter un PDF
+      </a>
+      <a class="btn ai-btn" href="{% url 'generate_resume' note.id %}">
+        <i class="bi bi-magic"></i> Résumer
+      </a>
+      <a class="btn btn-secondary" href="{% url 'view_resumes' note.id %}">
+        <i class="bi bi-file-text"></i> Voir les résumés
       </a>
     </div>
   </div>
@@ -225,7 +237,7 @@
   {% endfor %}
 </div>
 
-{# N’oubliez pas de charger les PdfNotes en vue #}
+{# N'oubliez pas de charger les PdfNotes en vue #}
 
 
 
