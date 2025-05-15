@@ -119,6 +119,39 @@ class PdfNote(models.Model):
     def __str__(self):
         return f"PdfNote for {self.note.titre} by {self.userEditeur.username}"
 
+class AudioNote(models.Model):
+    note = models.ForeignKey(Note, on_delete=models.CASCADE)
+    path = models.CharField(max_length=200)    # ex. "audio/mon_audio.mp3"
+    titre = models.CharField(max_length=200, default="Audio sans titre")
+    duree = models.IntegerField(default=0)  # Durée en secondes
+    date = models.DateTimeField(default=timezone.now)
+    userEditeur = models.ForeignKey('CustomUser', on_delete=models.CASCADE)
+
+    def __str__(self):
+        return f"AudioNote for {self.note.titre} by {self.userEditeur.username}"
+
+class VideoNote(models.Model):
+    note = models.ForeignKey(Note, on_delete=models.CASCADE)
+    path = models.CharField(max_length=200)    # ex. "video/ma_video.mp4"
+    titre = models.CharField(max_length=200, default="Vidéo sans titre")
+    duree = models.IntegerField(default=0)  # Durée en secondes
+    thumbnail = models.CharField(max_length=200, null=True, blank=True)  # Chemin vers la miniature
+    date = models.DateTimeField(default=timezone.now)
+    userEditeur = models.ForeignKey('CustomUser', on_delete=models.CASCADE)
+
+    def __str__(self):
+        return f"VideoNote for {self.note.titre} by {self.userEditeur.username}"
+
+class OcrNote(models.Model):
+    note = models.ForeignKey(Note, on_delete=models.CASCADE)
+    image_path = models.CharField(max_length=200)  # ex. "ocr/image.jpg"
+    texte_extrait = models.TextField()  # Texte extrait de l'image
+    date = models.DateTimeField(default=timezone.now)
+    userEditeur = models.ForeignKey('CustomUser', on_delete=models.CASCADE)
+
+    def __str__(self):
+        return f"OcrNote for {self.note.titre} by {self.userEditeur.username}"
+
 class TextNoteResume(models.Model):
     uuid = models.UUIDField(default=uuid.uuid4, editable=False)
     note = models.ForeignKey(Note, on_delete=models.CASCADE)
@@ -132,3 +165,39 @@ class TextNoteResume(models.Model):
 
     class Meta:
         unique_together = ('note', 'userEditeur', 'version')
+
+class QuizNote(models.Model):
+    uuid = models.UUIDField(default=uuid.uuid4, editable=False)
+    note = models.ForeignKey(Note, on_delete=models.CASCADE)
+    contenu = models.TextField()  # JSON stocké sous forme de texte
+    questions = models.JSONField(default=dict)  # Ajout du champ questions
+    date = models.DateTimeField(default=timezone.now)
+    userEditeur = models.ForeignKey('CustomUser', on_delete=models.CASCADE)
+    version = models.IntegerField(default=1)
+
+    def __str__(self):
+        return f"Quiz {self.version} pour {self.note.titre} par {self.userEditeur.username}"
+
+    class Meta:
+        unique_together = ('note', 'userEditeur', 'version')
+
+class EdenConversation(models.Model):
+    user = models.ForeignKey('CustomUser', on_delete=models.CASCADE)
+    date_creation = models.DateTimeField(default=timezone.now)
+    derniere_interaction = models.DateTimeField(default=timezone.now)
+    
+    def __str__(self):
+        return f"Conversation de {self.user.username} du {self.date_creation.strftime('%d/%m/%Y')}"
+
+class EdenMessage(models.Model):
+    conversation = models.ForeignKey(EdenConversation, on_delete=models.CASCADE, related_name='messages')
+    est_assistant = models.BooleanField(default=False)  # True pour Eden, False pour l'utilisateur
+    contenu = models.TextField()
+    date = models.DateTimeField(default=timezone.now)
+    
+    def __str__(self):
+        sender = "Eden" if self.est_assistant else "Utilisateur"
+        return f"Message de {sender} - {self.date.strftime('%H:%M:%S')}"
+    
+    class Meta:
+        ordering = ['date']

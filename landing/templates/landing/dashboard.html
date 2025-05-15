@@ -141,6 +141,203 @@
         text-decoration: none;
       }
 
+      /* Bouton flottant Eden */
+      .eden-floating-button {
+        position: fixed;
+        bottom: 30px;
+        right: 30px;
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        background-color: #2a4b7e;
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 24px;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        cursor: pointer;
+        z-index: 999;
+        transition: all 0.3s ease;
+      }
+
+      .eden-floating-button:hover {
+        transform: scale(1.1);
+        box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
+        background-color: #1e3a5a;
+      }
+
+      /* Highlight pour le menu Eden */
+      .eden-menu {
+        background-color: rgba(42, 75, 126, 0.2);
+        margin-top: 20px;
+        border-radius: 8px;
+      }
+
+      .eden-menu .menu-link {
+        color: white;
+      }
+
+      .eden-menu .menu-link:hover {
+        background-color: rgba(42, 75, 126, 0.3);
+        color: white;
+      }
+
+      /* Dialogue Eden */
+      .eden-chat-dialog {
+        position: fixed;
+        bottom: 100px;
+        right: 30px;
+        width: 350px;
+        height: 450px;
+        background-color: white;
+        border-radius: 15px;
+        box-shadow: 0 5px 25px rgba(0, 0, 0, 0.2);
+        z-index: 998;
+        display: none;
+        flex-direction: column;
+        overflow: hidden;
+        transition: all 0.3s ease;
+      }
+
+      .eden-chat-dialog.active {
+        display: flex;
+        animation: slide-up 0.3s ease forwards;
+      }
+
+      @keyframes slide-up {
+        from {
+          transform: translateY(20px);
+          opacity: 0;
+        }
+        to {
+          transform: translateY(0);
+          opacity: 1;
+        }
+      }
+
+      .eden-chat-header {
+        background-color: #2a4b7e;
+        color: white;
+        padding: 15px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .eden-chat-header-title {
+        display: flex;
+        align-items: center;
+        color: white;
+        gap: 10px;
+      }
+
+      .eden-chat-close {
+        background: none;
+        color: white;
+        border: none;
+        font-size: 18px;
+        cursor: pointer;
+        padding: 0;
+      }
+
+      .eden-chat-messages {
+        flex: 1;
+        padding: 15px;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        background-color: #f5f5f5;
+      }
+
+      .eden-message {
+        max-width: 80%;
+        padding: 10px 12px;
+        border-radius: 10px;
+        position: relative;
+        line-height: 1.4;
+        font-size: 14px;
+      }
+
+      .eden-message-assistant {
+        align-self: flex-start;
+        background-color: white;
+        border: 1px solid #e0e0e0;
+      }
+
+      .eden-message-user {
+        align-self: flex-end;
+        background-color: #2a4b7e;
+        color: white;
+      }
+
+      .eden-chat-input {
+        padding: 10px 15px;
+        border-top: 1px solid #e0e0e0;
+        display: flex;
+        gap: 10px;
+      }
+
+      /* Indicateur de chargement pour les messages Eden */
+      .eden-typing-indicator {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        padding: 4px;
+      }
+
+      .eden-typing-indicator span {
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        background-color: rgba(42, 75, 126, 0.6);
+        border-radius: 50%;
+        animation: typing-bounce 1.2s infinite ease-in-out;
+      }
+
+      .eden-typing-indicator span:nth-child(1) {
+        animation-delay: 0s;
+      }
+
+      .eden-typing-indicator span:nth-child(2) {
+        animation-delay: 0.2s;
+      }
+
+      .eden-typing-indicator span:nth-child(3) {
+        animation-delay: 0.4s;
+      }
+
+      @keyframes typing-bounce {
+        0%, 60%, 100% {
+          transform: translateY(0);
+        }
+        30% {
+          transform: translateY(-4px);
+        }
+      }
+
+      .eden-chat-input input {
+        flex: 1;
+        padding: 10px 12px;
+        border: 1px solid #ddd;
+        border-radius: 20px;
+        outline: none;
+      }
+
+      .eden-chat-input button {
+        background-color: #2a4b7e;
+        color: white;
+        border: none;
+        border-radius: 20px;
+        padding: 8px 15px;
+        cursor: pointer;
+      }
+
+      .eden-chat-input button:hover {
+        background-color: #1e3a5a;
+      }
+
       /* Responsive sidebar */
       @media (max-width: 1199.98px) {
         .sidebar-wrapper {
@@ -215,6 +412,13 @@
                 Récapitulation
               </a>
             </li>
+            <!-- Eden Assistant -->
+            <li class="menu-item eden-menu">
+              <a href="{% url 'eden_chat' %}" class="menu-link">
+                <i class="bi bi-robot me-2"></i>
+                Eden Assistant
+              </a>
+            </li>
           </ul>
         </div>
         <!-- Footer de la sidebar -->
@@ -286,6 +490,31 @@
       </div>
     </div>
 
+    <!-- Bouton flottant Eden -->
+    <a href="javascript:void(0)" class="eden-floating-button" id="eden-button">
+      <i class="bi bi-robot"></i>
+    </a>
+
+    <!-- Dialogue Eden -->
+    <div class="eden-chat-dialog" id="eden-dialog">
+      <div class="eden-chat-header">
+        <div class="eden-chat-header-title">
+          <i class="bi bi-robot"></i>
+          <span>Eden - Assistante</span>
+        </div>
+        <button class="eden-chat-close" id="eden-close"><i class="bi bi-x-lg"></i></button>
+      </div>
+      <div class="eden-chat-messages" id="eden-messages">
+        <div class="eden-message eden-message-assistant">
+          Bonjour, je suis Eden, votre assistante intelligente. Comment puis-je vous aider aujourd'hui?
+        </div>
+      </div>
+      <div class="eden-chat-input">
+        <input type="text" id="eden-input" placeholder="Écrivez votre message..." />
+        <button id="eden-send">Envoyer</button>
+      </div>
+    </div>
+
     <!-- Vendor JS Files -->
     <script src="{% static 'vendor/bootstrap/js/bootstrap.bundle.min.js' %}"></script>
     <script src="{% static 'vendor/php-email-form/validate.js' %}"></script>
@@ -329,6 +558,113 @@
             );
           });
         });
+
+      // Eden Chat Dialog
+      document.addEventListener('DOMContentLoaded', function() {
+        const edenButton = document.getElementById('eden-button');
+        const edenDialog = document.getElementById('eden-dialog');
+        const edenClose = document.getElementById('eden-close');
+        const edenInput = document.getElementById('eden-input');
+        const edenSend = document.getElementById('eden-send');
+        const edenMessages = document.getElementById('eden-messages');
+
+        edenButton.addEventListener('click', function(e) {
+          e.preventDefault();
+          edenDialog.classList.toggle('active');
+          if (edenDialog.classList.contains('active')) {
+            edenInput.focus();
+          }
+        });
+
+        edenClose.addEventListener('click', function() {
+          edenDialog.classList.remove('active');
+        });
+
+        edenSend.addEventListener('click', sendMessage);
+        edenInput.addEventListener('keypress', function(e) {
+          if (e.key === 'Enter') {
+            sendMessage();
+          }
+        });
+
+        function sendMessage() {
+          const message = edenInput.value.trim();
+          if (message) {
+            // Ajouter le message de l'utilisateur
+            const userMsg = document.createElement('div');
+            userMsg.className = 'eden-message eden-message-user';
+            userMsg.textContent = message;
+            edenMessages.appendChild(userMsg);
+            
+            // Scroll to bottom
+            edenMessages.scrollTop = edenMessages.scrollHeight;
+            
+            // Clear input
+            edenInput.value = '';
+            
+            // Ajouter indicateur de chargement
+            const loadingMsg = document.createElement('div');
+            loadingMsg.className = 'eden-message eden-message-assistant';
+            loadingMsg.innerHTML = '<div class="eden-typing-indicator"><span></span><span></span><span></span></div>';
+            edenMessages.appendChild(loadingMsg);
+            edenMessages.scrollTop = edenMessages.scrollHeight;
+            
+            // Appeler l'API pour obtenir la réponse d'Eden
+            fetch('/eden/api/', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+              },
+              body: JSON.stringify({ message: message })
+            })
+            .then(response => response.json())
+            .then(data => {
+              // Supprimer l'indicateur de chargement
+              edenMessages.removeChild(loadingMsg);
+              
+              // Ajouter la réponse d'Eden
+              const edenMsg = document.createElement('div');
+              edenMsg.className = 'eden-message eden-message-assistant';
+              edenMsg.textContent = data.response;
+              edenMessages.appendChild(edenMsg);
+              
+              // Scroll to bottom
+              edenMessages.scrollTop = edenMessages.scrollHeight;
+            })
+            .catch(error => {
+              // Supprime l'indicateur de chargement
+              edenMessages.removeChild(loadingMsg);
+              
+              // Ajouter un message d'erreur
+              const errorMsg = document.createElement('div');
+              errorMsg.className = 'eden-message eden-message-assistant';
+              errorMsg.textContent = "Désolé, je n'ai pas pu traiter votre demande. Veuillez réessayer.";
+              edenMessages.appendChild(errorMsg);
+              
+              // Scroll to bottom
+              edenMessages.scrollTop = edenMessages.scrollHeight;
+              console.error('Error:', error);
+            });
+          }
+        }
+        
+        // Fonction pour récupérer le cookie CSRF
+        function getCookie(name) {
+          let cookieValue = null;
+          if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+              const cookie = cookies[i].trim();
+              if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+              }
+            }
+          }
+          return cookieValue;
+        }
+      });
     </script>
   </body>
 </html>

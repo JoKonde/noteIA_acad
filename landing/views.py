@@ -1,7 +1,7 @@
 import random
 from django.shortcuts import render, redirect
 from django.contrib import messages
-from .models import CustomUser, Contact, Cours,Note,Collaborateur,TextNote,ImageNote,PdfNote,TextNoteResume
+from .models import CustomUser, Contact, Cours,Note,Collaborateur,TextNote,ImageNote,PdfNote,TextNoteResume,QuizNote,EdenConversation,EdenMessage,AudioNote,VideoNote,OcrNote
 import jwt
 import os
 import datetime
@@ -13,6 +13,8 @@ from django.utils import timezone
 from django.shortcuts import get_object_or_404
 from django.http import JsonResponse
 import markdown
+from dotenv import load_dotenv
+import re
 
 JWT_SECRET = os.environ.get('JWT_SECRET', 'lumiere_du_monde')
 JWT_ALGORITHM = 'HS256'
@@ -692,6 +694,9 @@ def generate_resume(request, note_id):
     prompt = f"Fais un résumé concis et structuré du texte suivant. Identifie et mets en évidence les points clés:\n\n{all_texts}"
     
     try:
+        # Re-charger les variables d'environnement pour s'assurer qu'elles sont disponibles
+        load_dotenv()
+        
         # Récupérer la clé API depuis les variables d'environnement
         api_key = os.environ.get('OPENROUTER_API_KEY')
         
@@ -797,4 +802,867 @@ def delete_resume(request, resume_id):
         messages.success(request, "Résumé supprimé avec succès !")
         
     return redirect('view_resumes', note_id=note.id)
+
+def generate_quiz(request, note_id):
+    user = get_current_user(request)
+    if not user:
+        messages.error(request, "Vous devez être connecté pour générer un quiz.")
+        return redirect('login')
+    
+    note = get_object_or_404(Note, id=note_id)
+    
+    # Vérifier si l'utilisateur est le propriétaire ou un collaborateur
+    is_owner = note.userOwner == user
+    is_collaborator = Collaborateur.objects.filter(note=note, userCollab=user).exists()
+    
+    if not (is_owner or is_collaborator):
+        messages.error(request, "Vous n'êtes pas autorisé à générer un quiz pour cette note.")
+        return redirect('dashboard')
+    
+    # Récupérer tous les textes de la note
+    textnotes = TextNote.objects.filter(note=note).order_by('date')
+    
+    if not textnotes:
+        messages.error(request, "Il n'y a pas de texte pour générer un quiz dans cette note.")
+        return redirect('note_detail', note_id=note_id)
+    
+    # Concaténer tous les textes
+    all_texts = "\n\n".join([tn.texte for tn in textnotes])
+    
+    # Limiter à 6000 caractères pour éviter de dépasser les limites de l'API
+    if len(all_texts) > 6000:
+        all_texts = all_texts[:6000] + "..."
+    
+    # Préparer le prompt pour le quiz
+    prompt = f"""Génère un quiz interactif basé sur le texte suivant.
+Le quiz doit contenir 5 questions de types variés (QCM, vrai/faux, réponse courte).
+Pour chaque question, fournir:
+1. L'énoncé de la question
+2. Les options de réponse (pour les QCM)
+3. La réponse correcte
+4. Une explication brève
+
+Formate le résultat en JSON avec cette structure:
+{{
+  "titre": "Titre du quiz basé sur le contenu",
+  "questions": [
+    {{
+      "question": "Question 1?",
+      "type": "qcm",
+      "options": ["Option A", "Option B", "Option C", "Option D"],
+      "reponse": "Option A",
+      "explication": "Explication de la réponse correcte"
+    }},
+    {{
+      "question": "Question 2?",
+      "type": "vrai_faux",
+      "options": ["Vrai", "Faux"],
+      "reponse": "Vrai",
+      "explication": "Explication de pourquoi c'est vrai"
+    }},
+    ...
+  ]
+}}
+
+Voici le texte:
+{all_texts}"""
+    
+    try:
+        # Re-charger les variables d'environnement pour s'assurer qu'elles sont disponibles
+        load_dotenv()
+        
+        # Récupérer la clé API depuis les variables d'environnement
+        api_key = os.environ.get('OPENROUTER_API_KEY')
+        
+        if not api_key:
+            messages.error(request, "Clé API OpenRouter non configurée. Veuillez configurer la variable d'environnement OPENROUTER_API_KEY.")
+            return redirect('note_detail', note_id=note_id)
+        
+        # Préparation de la requête à l'API OpenRouter
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json"
+        }
+        
+        data = {
+            "model": "deepseek/deepseek-r1:free",
+            "messages": [
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ]
+        }
+        
+        # Envoi de la requête
+        response = requests.post(
+            "https://openrouter.ai/api/v1/chat/completions",
+            headers=headers,
+            json=data
+        )
+        
+        # Récupération de la réponse
+        if response.status_code == 200:
+            result = response.json()
+            quiz_content = result["choices"][0]["message"]["content"]
+            
+            try:
+                # Parsing du JSON pour extraire les questions
+                quiz_data = json.loads(quiz_content)
+                questions_data = quiz_data.get("questions", [])
+                
+                # Déterminer la version du quiz
+                latest_version = QuizNote.objects.filter(note=note, userEditeur=user).order_by('-version').first()
+                version = 1 if not latest_version else latest_version.version + 1
+                
+                # Enregistrer le quiz avec les questions extraites
+                quiz = QuizNote(
+                    note=note,
+                    contenu=quiz_content,
+                    questions=questions_data,  # Ajout des questions extraites
+                    userEditeur=user,
+                    version=version
+                )
+                quiz.save()
+                
+                messages.success(request, "Quiz généré avec succès !")
+                return redirect('view_quizzes', note_id=note_id)
+            except json.JSONDecodeError:
+                # Si le JSON est invalide, on utilise un dict vide pour questions
+                # Déterminer la version du quiz
+                latest_version = QuizNote.objects.filter(note=note, userEditeur=user).order_by('-version').first()
+                version = 1 if not latest_version else latest_version.version + 1
+                
+                # Enregistrer le quiz avec un dict vide pour questions
+                quiz = QuizNote(
+                    note=note,
+                    contenu=quiz_content,
+                    questions={},  # Dict vide en cas d'erreur
+                    userEditeur=user,
+                    version=version
+                )
+                quiz.save()
+                
+                messages.warning(request, "Quiz généré mais avec un format incorrect. Veuillez réessayer.")
+                return redirect('view_quizzes', note_id=note_id)
+        else:
+            messages.error(request, f"Erreur lors de la génération du quiz: {response.text}")
+            return redirect('note_detail', note_id=note_id)
+            
+    except Exception as e:
+        messages.error(request, f"Erreur: {str(e)}")
+        return redirect('note_detail', note_id=note_id)
+
+def view_quizzes(request, note_id):
+    user = get_current_user(request)
+    if not user:
+        messages.error(request, "Vous devez être connecté pour voir les quiz.")
+        return redirect('login')
+    
+    note = get_object_or_404(Note, id=note_id)
+    
+    # Vérifier si l'utilisateur est le propriétaire ou un collaborateur
+    is_owner = note.userOwner == user
+    is_collaborator = Collaborateur.objects.filter(note=note, userCollab=user).exists()
+    
+    if not (is_owner or is_collaborator):
+        messages.error(request, "Vous n'êtes pas autorisé à voir les quiz de cette note.")
+        return redirect('dashboard')
+    
+    # Récupérer tous les quiz de la note
+    quizzes = QuizNote.objects.filter(note=note).order_by('-date')
+    
+    # Pour chaque quiz, extraire le titre du JSON s'il existe
+    for quiz in quizzes:
+        try:
+            quiz_data = json.loads(quiz.contenu)
+            quiz.titre = quiz_data.get('titre', f"Quiz {quiz.version}")
+        except json.JSONDecodeError:
+            quiz.titre = f"Quiz {quiz.version}"
+    
+    context = {
+        'note': note,
+        'quizzes': quizzes,
+        'is_owner': is_owner,
+        'is_collaborator': is_collaborator
+    }
+    
+    return render(request, 'landing/view_quizzes.html', context)
+
+def delete_quiz(request, quiz_id):
+    user = get_current_user(request)
+    if not user:
+        messages.error(request, "Vous devez être connecté pour supprimer un quiz.")
+        return redirect('login')
+    
+    quiz = get_object_or_404(QuizNote, id=quiz_id)
+    note = quiz.note
+    
+    # Vérifier si l'utilisateur est le propriétaire du quiz
+    if quiz.userEditeur != user:
+        messages.error(request, "Vous n'êtes pas autorisé à supprimer ce quiz.")
+        return redirect('view_quizzes', note_id=note.id)
+    
+    if request.method == "POST":
+        quiz.delete()
+        messages.success(request, "Quiz supprimé avec succès !")
+        
+    return redirect('view_quizzes', note_id=note.id)
+
+def eden_chat(request):
+    user = get_current_user(request)
+    if not user:
+        messages.error(request, "Vous devez être connecté pour utiliser Eden.")
+        return redirect('login')
+    
+    # Récupérer ou créer une conversation
+    conversation, created = EdenConversation.objects.get_or_create(
+        user=user,
+        defaults={'date_creation': timezone.now()}
+    )
+    
+    # Mettre à jour la date de dernière interaction
+    conversation.derniere_interaction = timezone.now()
+    conversation.save()
+    
+    if request.method == "POST":
+        message_text = request.POST.get('message')
+        
+        if message_text:
+            # Enregistrer le message de l'utilisateur
+            user_message = EdenMessage.objects.create(
+                conversation=conversation,
+                est_assistant=False,
+                contenu=message_text
+            )
+            
+            # Générer et enregistrer la réponse d'Eden
+            eden_response = generate_eden_response(user, message_text)
+            eden_message = EdenMessage.objects.create(
+                conversation=conversation,
+                est_assistant=True,
+                contenu=eden_response
+            )
+    
+    # Récupérer les 30 derniers messages de la conversation
+    messages_list = EdenMessage.objects.filter(conversation=conversation).order_by('date')[:30]
+    
+    return render(request, 'landing/eden_chat.html', {
+        'messages': messages_list,
+    })
+
+def generate_eden_response(user, message):
+    """Génère une réponse de l'assistant Eden en utilisant l'API OpenRouter"""
+    try:
+        # Détection des intentions de l'utilisateur
+        # Si le message contient des commandes d'action, traiter avant d'envoyer à l'API
+        intent, action_response = detect_user_intent(user, message)
+        if action_response:
+            return action_response
+        
+        # Re-charger les variables d'environnement pour s'assurer qu'elles sont disponibles
+        load_dotenv()
+        
+        # Récupérer la clé API depuis les variables d'environnement
+        api_key = os.environ.get('OPENROUTER_API_KEY')
+        
+        if not api_key:
+            return "Je suis désolé, mais je rencontre un problème technique. Ma clé API n'est pas configurée. Veuillez contacter l'administrateur."
+        
+        # Contexte système pour personnaliser Eden
+        system_prompt = """Tu es Eden, l'assistant intelligent de l'application NoteIA, une plateforme de prise de notes collaborative avec des fonctionnalités d'IA.
+Tu dois aider les utilisateurs à:
+- Comprendre les fonctionnalités de NoteIA (création de notes, invitation de collaborateurs, génération de résumés et de quiz)
+- Naviguer dans l'application
+- Résoudre les problèmes techniques
+- Comprendre comment utiliser l'IA dans leurs notes
+- Gérer leurs données et les données partagées
+
+Ton ton est amical, serviable et professionnel. Tu es spécialisé dans l'aide sur NoteIA uniquement.
+Si l'utilisateur pose des questions non liées à NoteIA, rappelle-lui gentiment que tu es l'assistant de NoteIA.
+
+Les principales fonctionnalités de NoteIA sont:
+1. Création et gestion de cours
+2. Création de notes (texte, image, PDF, audio, vidéo, OCR)
+3. Invitation de collaborateurs pour co-éditer des notes
+4. Génération de résumés de notes par IA
+5. Génération de quiz interactifs par IA
+6. Système d'authentification sécurisé
+
+Si l'utilisateur demande de créer un cours, une note ou d'effectuer une action dans l'application, suggère-lui comment le faire via l'interface ou propose-lui de l'aider.
+"""
+
+        # Construire le message pour l'API
+        data = {
+            "model": "deepseek/deepseek-r1:free",
+            "messages": [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": message}
+            ]
+        }
+        
+        # Préparer les en-têtes
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json"
+        }
+        
+        # Envoi de la requête
+        response = requests.post(
+            "https://openrouter.ai/api/v1/chat/completions",
+            headers=headers,
+            json=data
+        )
+        
+        # Traitement de la réponse
+        if response.status_code == 200:
+            result = response.json()
+            return result["choices"][0]["message"]["content"]
+        else:
+            return f"Je suis désolé, mais je rencontre un problème technique. Erreur: {response.status_code}"
+            
+    except Exception as e:
+        return f"Je suis désolé, mais je rencontre un problème technique. Erreur: {str(e)}"
+
+def detect_user_intent(user, message):
+    """
+    Détecte l'intention de l'utilisateur et effectue des actions si nécessaire
+    Retourne un tuple (intent, response) où response est None si aucune action n'a été effectuée
+    """
+    message_lower = message.lower()
+    
+    # Intention de création de cours
+    if any(x in message_lower for x in ["créer un cours", "nouveau cours", "ajouter un cours"]):
+        # Extraction du nom du cours à partir du message
+        cours_name = extract_course_name(message)
+        if cours_name:
+            # Vérifier si un cours avec ce nom existe déjà
+            if Cours.objects.filter(nom__iexact=cours_name, user=user).exists():
+                return "create_course", f"Vous avez déjà un cours nommé '{cours_name}'. Voulez-vous en créer un autre avec un nom différent?"
+            
+            # Créer le cours
+            Cours.objects.create(
+                nom=cours_name,
+                description=f"Cours créé via Eden le {timezone.now().strftime('%d/%m/%Y')}",
+                user=user
+            )
+            return "create_course", f"J'ai créé le cours '{cours_name}' pour vous. Vous pouvez le retrouver dans la liste de vos cours."
+        else:
+            return "create_course", "Je serais ravi de vous aider à créer un cours. Pourriez-vous me dire quel nom vous souhaitez lui donner?"
+    
+    # Intention de création de note
+    elif any(x in message_lower for x in ["créer une note", "nouvelle note", "ajouter une note"]):
+        # On a besoin de connaître le cours pour la note
+        course_id, course_name = extract_course_reference(message, user)
+        if course_id:
+            note_title = extract_note_title(message)
+            if note_title:
+                # Vérifier si une note avec ce titre existe déjà dans ce cours
+                try:
+                    course = Cours.objects.get(id=course_id)
+                    if Note.objects.filter(titre__iexact=note_title, cours=course, userOwner=user).exists():
+                        return "create_note", f"Vous avez déjà une note intitulée '{note_title}' dans le cours '{course.nom}'. Voulez-vous en créer une autre avec un titre différent?"
+                    
+                    # Créer la note
+                    Note.objects.create(
+                        titre=note_title,
+                        cours=course,
+                        userOwner=user
+                    )
+                    return "create_note", f"J'ai créé la note '{note_title}' dans le cours '{course.nom}'. Vous pouvez maintenant y ajouter du contenu."
+                except Cours.DoesNotExist:
+                    return "create_note", "Je n'ai pas trouvé le cours spécifié. Veuillez vérifier et réessayer."
+            else:
+                return "create_note", f"Pour créer une note dans le cours '{course_name}', j'ai besoin d'un titre. Quel titre souhaitez-vous donner à cette note?"
+        else:
+            # Récupérer la liste des cours de l'utilisateur
+            user_courses = Cours.objects.filter(user=user)
+            if not user_courses.exists():
+                return "create_note", "Vous n'avez pas encore de cours. Créez d'abord un cours pour pouvoir y ajouter des notes."
+            
+            courses_list = ", ".join([f"'{c.nom}'" for c in user_courses[:5]])
+            if len(user_courses) > 5:
+                courses_list += f" et {len(user_courses) - 5} autres"
+            
+            return "create_note", f"Dans quel cours souhaitez-vous créer cette note? Vos cours disponibles sont: {courses_list}"
+    
+    # Listage des cours
+    elif any(x in message_lower for x in ["liste de mes cours", "voir mes cours", "afficher mes cours", "quels sont mes cours"]):
+        user_courses = Cours.objects.filter(user=user)
+        if not user_courses.exists():
+            return "list_courses", "Vous n'avez pas encore créé de cours. Vous pouvez en créer un en cliquant sur 'Créer cours' dans le menu."
+        
+        courses_list = "\n".join([f"• {c.nom}" for c in user_courses])
+        return "list_courses", f"Voici la liste de vos cours:\n{courses_list}"
+    
+    # Listage des notes d'un cours
+    elif any(x in message_lower for x in ["liste des notes", "voir mes notes", "afficher les notes", "quelles sont les notes"]):
+        course_id, course_name = extract_course_reference(message, user)
+        if course_id:
+            try:
+                course = Cours.objects.get(id=course_id)
+                notes = Note.objects.filter(cours=course, userOwner=user)
+                if not notes.exists():
+                    return "list_notes", f"Vous n'avez pas encore créé de notes dans le cours '{course.nom}'. Vous pouvez en créer une depuis la page du cours."
+                
+                notes_list = "\n".join([f"• {n.titre}" for n in notes])
+                return "list_notes", f"Voici la liste des notes dans le cours '{course.nom}':\n{notes_list}"
+            except Cours.DoesNotExist:
+                return "list_notes", "Je n'ai pas trouvé le cours spécifié. Veuillez vérifier et réessayer."
+        else:
+            # Récupérer la liste des cours de l'utilisateur
+            user_courses = Cours.objects.filter(user=user)
+            if not user_courses.exists():
+                return "list_notes", "Vous n'avez pas encore de cours. Créez d'abord un cours pour pouvoir y ajouter des notes."
+            
+            courses_list = ", ".join([f"'{c.nom}'" for c in user_courses[:5]])
+            if len(user_courses) > 5:
+                courses_list += f" et {len(user_courses) - 5} autres"
+            
+            return "list_notes", f"Pour quels cours souhaitez-vous voir les notes? Vos cours disponibles sont: {courses_list}"
+    
+    # Si aucune intention d'action n'est détectée
+    return None, None
+
+def extract_course_name(message):
+    """Extrait le nom du cours à partir du message"""
+    # Recherche de phrases comme "créer un cours nommé X" ou "nouveau cours intitulé X"
+    patterns = [
+        r"cours[^\w]*nommé[^\w]*[\"']?([^\"']+)[\"']?",
+        r"cours[^\w]*intitulé[^\w]*[\"']?([^\"']+)[\"']?",
+        r"cours[^\w]*appelé[^\w]*[\"']?([^\"']+)[\"']?",
+        r"créer[^\w]*[\"']?([^\"']+)[\"']?[^\w]*comme cours",
+        r"ajouter[^\w]*[\"']?([^\"']+)[\"']?[^\w]*comme cours",
+    ]
+    
+    for pattern in patterns:
+        match = re.search(pattern, message, re.IGNORECASE)
+        if match:
+            return match.group(1).strip()
+    
+    # Si aucun pattern ne correspond, prendre les mots après "créer un cours"
+    match = re.search(r"créer un cours[^\w]*[\"']?([^\"']+)[\"']?", message, re.IGNORECASE)
+    if match:
+        return match.group(1).strip()
+    
+    return None
+
+def extract_course_reference(message, user):
+    """
+    Extrait la référence à un cours à partir du message
+    Retourne un tuple (course_id, course_name) ou (None, None)
+    """
+    # Extraire les mentions explicites de cours
+    patterns = [
+        r"cours[^\w]*[\"']?([^\"']+)[\"']?",
+        r"dans[^\w]*[\"']?([^\"']+)[\"']?",
+        r"pour[^\w]*[\"']?([^\"']+)[\"']?",
+    ]
+    
+    course_name = None
+    for pattern in patterns:
+        match = re.search(pattern, message, re.IGNORECASE)
+        if match:
+            course_name = match.group(1).strip()
+            break
+    
+    if course_name:
+        # Rechercher le cours par nom
+        try:
+            course = Cours.objects.get(nom__iexact=course_name, user=user)
+            return course.id, course.nom
+        except Cours.DoesNotExist:
+            # Recherche approximative
+            courses = Cours.objects.filter(user=user)
+            for course in courses:
+                if course_name.lower() in course.nom.lower() or course.nom.lower() in course_name.lower():
+                    return course.id, course.nom
+    
+    return None, None
+
+def extract_note_title(message):
+    """Extrait le titre de la note à partir du message"""
+    # Recherche de phrases comme "note intitulée X" ou "note nommée X"
+    patterns = [
+        r"note[^\w]*intitulée[^\w]*[\"']?([^\"']+)[\"']?",
+        r"note[^\w]*nommée[^\w]*[\"']?([^\"']+)[\"']?",
+        r"note[^\w]*appelée[^\w]*[\"']?([^\"']+)[\"']?",
+        r"créer[^\w]*[\"']?([^\"']+)[\"']?[^\w]*comme note",
+    ]
+    
+    for pattern in patterns:
+        match = re.search(pattern, message, re.IGNORECASE)
+        if match:
+            return match.group(1).strip()
+    
+    # Si aucun pattern ne correspond, prendre les mots après "créer une note"
+    match = re.search(r"créer une note[^\w]*[\"']?([^\"']+)[\"']?", message, re.IGNORECASE)
+    if match:
+        return match.group(1).strip()
+    
+    return None
+
+# Nouveau endpoint API pour Eden
+def eden_api(request):
+    if request.method != "POST":
+        return JsonResponse({"error": "Méthode non autorisée"}, status=405)
+    
+    user = get_current_user(request)
+    if not user:
+        return JsonResponse({"error": "Non authentifié"}, status=401)
+    
+    try:
+        data = json.loads(request.body)
+        message_text = data.get('message')
+        
+        if not message_text:
+            return JsonResponse({"error": "Aucun message fourni"}, status=400)
+        
+        # Récupérer ou créer une conversation
+        conversation, created = EdenConversation.objects.get_or_create(
+            user=user,
+            defaults={'date_creation': timezone.now()}
+        )
+        
+        # Mettre à jour la date de dernière interaction
+        conversation.derniere_interaction = timezone.now()
+        conversation.save()
+        
+        # Enregistrer le message de l'utilisateur
+        user_message = EdenMessage.objects.create(
+            conversation=conversation,
+            est_assistant=False,
+            contenu=message_text
+        )
+        
+        # Générer et enregistrer la réponse d'Eden
+        eden_response = generate_eden_response(user, message_text)
+        eden_message = EdenMessage.objects.create(
+            conversation=conversation,
+            est_assistant=True,
+            contenu=eden_response
+        )
+        
+        return JsonResponse({
+            "success": True,
+            "response": eden_response
+        })
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "Format JSON invalide"}, status=400)
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+def create_audionote(request, note_id):
+    user = get_current_user(request)
+    if not user:
+        messages.error(request, "Connectez-vous pour ajouter un audio.")
+        return redirect('login')
+
+    note = get_object_or_404(Note, id=note_id)
+    # Autorisation owner ou collaborateur
+    is_collab = Collaborateur.objects.filter(note=note, userCollab=user).exists()
+    if note.userOwner != user and not is_collab:
+        messages.error(request, "Vous n'avez pas le droit d'ajouter un audio à cette note.")
+        return redirect('dashboard')
+
+    if request.method == "POST":
+        uploaded = request.FILES.get('audio')
+        titre = request.POST.get('titre', 'Audio sans titre')
+        duree = request.POST.get('duree', 0)  # En secondes
+        
+        if not uploaded:
+            messages.error(request, "Veuillez sélectionner un fichier audio.")
+            return render(request, 'landing/create_audionote.html', {
+                'note': note,
+                'user_contact': user.contact
+            })
+
+        # Extension et nom de fichier unique
+        ext = os.path.splitext(uploaded.name)[1]
+        filename = f"{note.id}_{int(timezone.now().timestamp())}{ext}"
+
+        # Répertoire de destination
+        assets_dir = os.path.join(
+            settings.BASE_DIR,
+            'landing', 'templates', 'landing', 'assets', 'audio'
+        )
+        os.makedirs(assets_dir, exist_ok=True)
+
+        save_path = os.path.join(assets_dir, filename)
+        rel_path = f"audio/{filename}"
+
+        # Sauvegarder le fichier
+        with open(save_path, 'wb') as f:
+            for chunk in uploaded.chunks():
+                f.write(chunk)
+
+        # Enregistrer en base
+        AudioNote.objects.create(
+            note=note,
+            path=rel_path,
+            titre=titre,
+            duree=duree,
+            userEditeur=user
+        )
+        messages.success(request, "Audio ajouté avec succès !")
+        return redirect('note_detail', note_id=note.id)
+
+    return render(request, 'landing/create_audionote.html', {
+        'note': note,
+        'user_contact': user.contact
+    })
+
+def delete_audionote(request, audio_id):
+    user = get_current_user(request)
+    if not user:
+        messages.error(request, "Connectez-vous pour supprimer un audio.")
+        return redirect('login')
+
+    audio = get_object_or_404(AudioNote, id=audio_id)
+    note = audio.note
+
+    # Autorisation owner ou collaborateur
+    is_owner = (note.userOwner == user)
+    is_collab = Collaborateur.objects.filter(note=note, userCollab=user).exists()
+    if not (is_owner or is_collab):
+        messages.error(request, "Vous n'avez pas le droit de supprimer cet audio.")
+        return redirect('note_detail', note_id=note.id)
+
+    if request.method == "POST":
+        # Supprime le fichier sur le disque
+        file_path = os.path.join(
+            settings.BASE_DIR,
+            'landing', 'templates', 'landing', 'assets', audio.path.replace('/', os.sep)
+        )
+        if os.path.exists(file_path):
+            os.remove(file_path)
+        audio.delete()
+        messages.success(request, "Audio supprimé avec succès !")
+        return redirect('note_detail', note_id=note.id)
+
+    # Pas de page de confirmation dédiée, on redirige
+    return redirect('note_detail', note_id=note.id)
+
+def create_videonote(request, note_id):
+    user = get_current_user(request)
+    if not user:
+        messages.error(request, "Connectez-vous pour ajouter une vidéo.")
+        return redirect('login')
+
+    note = get_object_or_404(Note, id=note_id)
+    # Autorisation owner ou collaborateur
+    is_collab = Collaborateur.objects.filter(note=note, userCollab=user).exists()
+    if note.userOwner != user and not is_collab:
+        messages.error(request, "Vous n'avez pas le droit d'ajouter une vidéo à cette note.")
+        return redirect('dashboard')
+
+    if request.method == "POST":
+        uploaded_video = request.FILES.get('video')
+        uploaded_thumbnail = request.FILES.get('thumbnail')
+        titre = request.POST.get('titre', 'Vidéo sans titre')
+        duree = request.POST.get('duree', 0)  # En secondes
+        
+        if not uploaded_video:
+            messages.error(request, "Veuillez sélectionner un fichier vidéo.")
+            return render(request, 'landing/create_videonote.html', {
+                'note': note,
+                'user_contact': user.contact
+            })
+
+        # Extension et nom de fichier unique pour la vidéo
+        video_ext = os.path.splitext(uploaded_video.name)[1]
+        video_filename = f"{note.id}_video_{int(timezone.now().timestamp())}{video_ext}"
+
+        # Répertoire de destination pour la vidéo
+        video_dir = os.path.join(
+            settings.BASE_DIR,
+            'landing', 'templates', 'landing', 'assets', 'video'
+        )
+        os.makedirs(video_dir, exist_ok=True)
+
+        video_save_path = os.path.join(video_dir, video_filename)
+        video_rel_path = f"video/{video_filename}"
+
+        # Sauvegarder la vidéo
+        with open(video_save_path, 'wb') as f:
+            for chunk in uploaded_video.chunks():
+                f.write(chunk)
+
+        # Traitement de la miniature si fournie
+        thumbnail_rel_path = None
+        if uploaded_thumbnail:
+            thumb_ext = os.path.splitext(uploaded_thumbnail.name)[1]
+            thumb_filename = f"{note.id}_thumb_{int(timezone.now().timestamp())}{thumb_ext}"
+            
+            thumb_dir = os.path.join(
+                settings.BASE_DIR,
+                'landing', 'templates', 'landing', 'assets', 'img', 'thumbnails'
+            )
+            os.makedirs(thumb_dir, exist_ok=True)
+            
+            thumb_save_path = os.path.join(thumb_dir, thumb_filename)
+            thumbnail_rel_path = f"img/thumbnails/{thumb_filename}"
+            
+            with open(thumb_save_path, 'wb') as f:
+                for chunk in uploaded_thumbnail.chunks():
+                    f.write(chunk)
+
+        # Enregistrer en base
+        VideoNote.objects.create(
+            note=note,
+            path=video_rel_path,
+            titre=titre,
+            duree=duree,
+            thumbnail=thumbnail_rel_path,
+            userEditeur=user
+        )
+        messages.success(request, "Vidéo ajoutée avec succès !")
+        return redirect('note_detail', note_id=note.id)
+
+    return render(request, 'landing/create_videonote.html', {
+        'note': note,
+        'user_contact': user.contact
+    })
+
+def delete_videonote(request, video_id):
+    user = get_current_user(request)
+    if not user:
+        messages.error(request, "Connectez-vous pour supprimer une vidéo.")
+        return redirect('login')
+
+    video = get_object_or_404(VideoNote, id=video_id)
+    note = video.note
+
+    # Autorisation owner ou collaborateur
+    is_owner = (note.userOwner == user)
+    is_collab = Collaborateur.objects.filter(note=note, userCollab=user).exists()
+    if not (is_owner or is_collab):
+        messages.error(request, "Vous n'avez pas le droit de supprimer cette vidéo.")
+        return redirect('note_detail', note_id=note.id)
+
+    if request.method == "POST":
+        # Supprime le fichier vidéo
+        video_path = os.path.join(
+            settings.BASE_DIR,
+            'landing', 'templates', 'landing', 'assets', video.path.replace('/', os.sep)
+        )
+        if os.path.exists(video_path):
+            os.remove(video_path)
+            
+        # Supprime la miniature si elle existe
+        if video.thumbnail:
+            thumb_path = os.path.join(
+                settings.BASE_DIR,
+                'landing', 'templates', 'landing', 'assets', video.thumbnail.replace('/', os.sep)
+            )
+            if os.path.exists(thumb_path):
+                os.remove(thumb_path)
+                
+        video.delete()
+        messages.success(request, "Vidéo supprimée avec succès !")
+        return redirect('note_detail', note_id=note.id)
+
+    # Pas de page de confirmation dédiée, on redirige
+    return redirect('note_detail', note_id=note.id)
+
+def create_ocrnote(request, note_id):
+    user = get_current_user(request)
+    if not user:
+        messages.error(request, "Connectez-vous pour ajouter une extraction OCR.")
+        return redirect('login')
+
+    note = get_object_or_404(Note, id=note_id)
+    # Autorisation owner ou collaborateur
+    is_collab = Collaborateur.objects.filter(note=note, userCollab=user).exists()
+    if note.userOwner != user and not is_collab:
+        messages.error(request, "Vous n'avez pas le droit d'ajouter une extraction OCR à cette note.")
+        return redirect('dashboard')
+
+    if request.method == "POST":
+        uploaded = request.FILES.get('image')
+        texte_manuel = request.POST.get('texte_manuel', '')
+        
+        if not uploaded and not texte_manuel:
+            messages.error(request, "Veuillez sélectionner une image ou entrer du texte manuellement.")
+            return render(request, 'landing/create_ocrnote.html', {
+                'note': note,
+                'user_contact': user.contact
+            })
+
+        image_rel_path = None
+        # Si on a uploadé une image
+        if uploaded:
+            # Extension et nom de fichier unique
+            ext = os.path.splitext(uploaded.name)[1]
+            filename = f"{note.id}_ocr_{int(timezone.now().timestamp())}{ext}"
+
+            # Répertoire de destination
+            assets_dir = os.path.join(
+                settings.BASE_DIR,
+                'landing', 'templates', 'landing', 'assets', 'ocr'
+            )
+            os.makedirs(assets_dir, exist_ok=True)
+
+            save_path = os.path.join(assets_dir, filename)
+            image_rel_path = f"ocr/{filename}"
+
+            # Sauvegarder le fichier
+            with open(save_path, 'wb') as f:
+                for chunk in uploaded.chunks():
+                    f.write(chunk)
+                    
+            # Ici, on pourrait appeler un service OCR pour extraire le texte
+            # Pour l'instant, on utilise le texte fourni manuellement ou un placeholder
+            texte_extrait = texte_manuel if texte_manuel else "Texte extrait par OCR..."
+        else:
+            # Si pas d'image, on utilise juste le texte manuel
+            texte_extrait = texte_manuel
+
+        # Enregistrer en base
+        OcrNote.objects.create(
+            note=note,
+            image_path=image_rel_path,
+            texte_extrait=texte_extrait,
+            userEditeur=user
+        )
+        messages.success(request, "Extraction OCR ajoutée avec succès !")
+        return redirect('note_detail', note_id=note.id)
+
+    return render(request, 'landing/create_ocrnote.html', {
+        'note': note,
+        'user_contact': user.contact
+    })
+
+def delete_ocrnote(request, ocr_id):
+    user = get_current_user(request)
+    if not user:
+        messages.error(request, "Connectez-vous pour supprimer une extraction OCR.")
+        return redirect('login')
+
+    ocr = get_object_or_404(OcrNote, id=ocr_id)
+    note = ocr.note
+
+    # Autorisation owner ou collaborateur
+    is_owner = (note.userOwner == user)
+    is_collab = Collaborateur.objects.filter(note=note, userCollab=user).exists()
+    if not (is_owner or is_collab):
+        messages.error(request, "Vous n'avez pas le droit de supprimer cette extraction OCR.")
+        return redirect('note_detail', note_id=note.id)
+
+    if request.method == "POST":
+        # Supprime l'image associée si elle existe
+        if ocr.image_path:
+            img_path = os.path.join(
+                settings.BASE_DIR,
+                'landing', 'templates', 'landing', 'assets', ocr.image_path.replace('/', os.sep)
+            )
+            if os.path.exists(img_path):
+                os.remove(img_path)
+                
+        ocr.delete()
+        messages.success(request, "Extraction OCR supprimée avec succès !")
+        return redirect('note_detail', note_id=note.id)
+
+    # Pas de page de confirmation dédiée, on redirige
+    return redirect('note_detail', note_id=note.id)
 

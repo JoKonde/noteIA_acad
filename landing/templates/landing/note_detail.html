@@ -4,82 +4,293 @@
 <style>
   .textnote-card {
     background: #fff;
-    border: 1px solid #ddd;
-    border-radius: 8px;
-    padding: 1rem;
-    margin-bottom: 1rem;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    border: 1px solid #eaeaea;
+    border-radius: 12px;
+    padding: 1.25rem;
+    margin-bottom: 1.25rem;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    transition: all 0.2s ease;
   }
+  
+  .textnote-card:hover {
+    box-shadow: 0 5px 15px rgba(0,0,0,0.07);
+    transform: translateY(-2px);
+  }
+  
   .textnote-card p {
     white-space: pre-wrap;  /* ← conserve les sauts de ligne */
     color: #333;
-    line-height: 1.5;
+    line-height: 1.6;
+    font-size: 1rem;
+    margin-bottom: 0.75rem;
   }
-  .header-section .btn + .btn {
-    margin-left: 0.5rem;
-  }
+  
   .header-section {
     display: flex;
     justify-content: space-between;
-    align-items: center;
-    margin-bottom: 1.5rem;
+    align-items: flex-start;
+    margin-bottom: 2rem;
     flex-wrap: wrap;
+    background: white;
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.04);
   }
+  
+  .note-title-area {
+    display: flex;
+    align-items: center;
+    margin-bottom: 1rem;
+  }
+  
+  .note-title {
+    font-size: 1.8rem;
+    color: #2A4B7E;
+    font-weight: 600;
+    margin: 0;
+  }
+  
   .header-actions {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
-    margin-top: 0.5rem;  /* pour que "Ajouter PDF" tombe un peu plus bas */
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    margin-top: 0.5rem;
   }
+  
+  .action-group {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+  }
+  
   .btn {
-    padding: 0.5rem 0.75rem;
-    border-radius: 5px;
+    padding: 0.625rem 1rem;
+    border-radius: 30px;
     text-decoration: none;
     color: #fff;
     background: #2A4B7E;
-    transition: background 0.3s;
+    transition: all 0.2s ease;
+    border: none;
+    display: inline-flex;
+    align-items: center;
+    font-weight: 500;
+    font-size: 0.9rem;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
   }
+  
+  .btn i {
+    margin-right: 0.5rem;
+  }
+  
   .btn:hover {
     background: #1E3A5A;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
   }
+  
+  .btn-primary {
+    background: #2A4B7E;
+  }
+  
+  .btn-secondary {
+    background: #6c757d;
+  }
+  
+  .btn-info {
+    background: #17a2b8;
+  }
+  
+  .btn-danger {
+    background: #dc3545;
+  }
+  
+  .btn-warning {
+    background: #ffc107;
+    color: #212529;
+  }
+  
+  .ai-btn {
+    background: #087f5b;
+  }
+  
+  .ai-btn:hover {
+    background: #065e44;
+  }
+  
   .invited-label {
-    color: green;
+    color: #087f5b;
     font-style: italic;
     margin-left: 1rem;
+    font-weight: 500;
+    font-size: 0.9rem;
+    display: inline-flex;
+    align-items: center;
+    background: rgba(8, 127, 91, 0.1);
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
   }
+  
   .collab-info {
-    color: green;
-    font-weight: bold;
+    margin-top: 1.5rem;
+    border-top: 1px solid #eee;
+    padding-top: 1.5rem;
+    color: #2A4B7E;
+    font-weight: 500;
+  }
+  
+  .collab-info .user-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+  }
+  
+  .collab-info .user-tag {
+    background: rgba(42, 75, 126, 0.1);
+    color: #2A4B7E;
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+    font-size: 0.85rem;
+  }
+  
+  .section-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: #2A4B7E;
+    margin: 2rem 0 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid rgba(42, 75, 126, 0.1);
+  }
+
+  .media-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 1rem;
     margin-top: 1rem;
   }
-  .ai-btn {
-    background: #4CAF50;
+  
+  .media-card {
+    background: white;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    transition: all 0.2s ease;
+    position: relative;
   }
-  .ai-btn:hover {
-    background: #45a049;
+  
+  .media-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+  }
+  
+  .media-thumbnail {
+    height: 140px;
+    background-size: cover;
+    background-position: center;
+    position: relative;
+  }
+  
+  .media-content {
+    padding: 0.75rem;
+  }
+  
+  .media-title {
+    font-size: 0.9rem;
+    font-weight: 500;
+    margin-bottom: 0.25rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  
+  .media-info {
+    font-size: 0.8rem;
+    color: #6c757d;
+  }
+  
+  .media-actions {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 0.5rem;
+  }
+  
+  .delete-btn {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    z-index: 10;
+    background: rgba(220, 53, 69, 0.8);
+    color: white;
+    border: none;
+    width: 1.5rem;
+    height: 1.5rem;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+  }
+  
+  .media-card:hover .delete-btn {
+    opacity: 1;
+  }
+  
+  .delete-btn:hover {
+    background: #dc3545;
+  }
+  
+  .empty-message {
+    color: #6c757d;
+    font-style: italic;
+    margin: 1rem 0;
+  }
+  
+  .meta-info {
+    font-size: 0.85rem;
+    color: #6c757d;
+    margin-bottom: 2rem;
+  }
+  
+  /* Media query pour la responsivité */
+  @media (max-width: 768px) {
+    .header-section {
+      flex-direction: column;
+    }
+    
+    .header-actions {
+      margin-top: 1rem;
+      justify-content: flex-start;
+    }
   }
 </style>
 
 <div class="header-section">
   <div>
-    <h2 style="display:inline">{{ note.titre }}</h2>
-    {% if invited %}
-      <span class="invited-label">Par invitation</span>
-    {% endif %}
+    <div class="note-title-area">
+      <h2 class="note-title">{{ note.titre }}</h2>
+      {% if invited %}
+        <span class="invited-label"><i class="bi bi-person-check me-1"></i> Par invitation</span>
+      {% endif %}
+    </div>
+    <p class="meta-info"><i class="bi bi-calendar3 me-1"></i> Créée le {{ note.date|date:"d/m/Y H:i" }}</p>
   </div>
 
   {% if messages %}
-    <ul style="list-style:none; padding:0; margin:0 1rem 1rem 0; flex:1;">
+    <div class="messages-container mb-3 w-100">
       {% for message in messages %}
-        <li style="background:#ebe8e8; color:#161616; padding:0.75rem; border:1px solid #f5c6cb; border-radius:5px; margin-bottom:0.5rem;">
+        <div class="alert alert-{% if message.tags %}{{ message.tags }}{% else %}info{% endif %} alert-dismissible fade show">
           {{ message }}
-        </li>
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
       {% endfor %}
-    </ul>
+    </div>
   {% endif %}
 
   <div>
-    <div class="header-actions">
+    <div class="action-group">
       {% if is_owner %}
         <a class="btn btn-secondary" href="{% url 'invite_collaborators' note.id %}">
           <i class="bi bi-person-plus"></i> Inviter
@@ -92,7 +303,8 @@
         <i class="bi bi-card-image"></i> Ajouter une image
       </a>
     </div>
-    <div class="header-actions">
+    
+    <div class="action-group">
       <a class="btn btn-danger" href="{% url 'create_pdfnote' note.id %}">
         <i class="bi bi-file-earmark-pdf-fill"></i> Ajouter un PDF
       </a>
@@ -100,116 +312,104 @@
         <i class="bi bi-magic"></i> Résumer
       </a>
       <a class="btn btn-secondary" href="{% url 'view_resumes' note.id %}">
-        <i class="bi bi-file-text"></i> Voir les résumés
+        <i class="bi bi-file-text"></i> Résumés
+      </a>
+    </div>
+    
+    <div class="action-group">
+      <a class="btn btn-warning" href="{% url 'generate_quiz' note.id %}">
+        <i class="bi bi-question-circle"></i> Quiz
+      </a>
+      <a class="btn btn-secondary" href="{% url 'view_quizzes' note.id %}">
+        <i class="bi bi-list-check"></i> Voir les quiz
       </a>
     </div>
   </div>
 </div>
 
-<p>Créée le {{ note.date|date:"d/m/Y H:i" }}</p>
-
-<h3>TextNotes</h3>
+<h3 class="section-title"><i class="bi bi-card-text me-2"></i>Textes</h3>
 {% for tn in textnotes %}
   <div class="textnote-card">
     <p>{{ tn.texte }}</p>
-    <small>
-      Édité par {{ tn.userEditeur.username }} le {{ tn.date|date:"d/m/Y H:i" }}
+    <div class="media-info">
+      <span><i class="bi bi-person-circle me-1"></i> Édité par {{ tn.userEditeur.username }}</span> 
+      <span class="ms-2"><i class="bi bi-clock me-1"></i> {{ tn.date|date:"d/m/Y H:i" }}</span>
       {% if tn.userEditeur != note.userOwner %}
-        <span class="invited-label">(Par invitation)</span>
+        <span class="invited-label"><i class="bi bi-person-check me-1"></i> Collaborateur</span>
       {% endif %}
-    </small>
+    </div>
   </div>
 {% empty %}
-  <p>Aucun texte ajouté pour cette note.</p>
+  <p class="empty-message">Aucun texte ajouté pour cette note.</p>
 {% endfor %}
 
-
-
-
-<h3>Images</h3>
-<div class="d-flex flex-wrap gap-3">
+<h3 class="section-title"><i class="bi bi-images me-2"></i>Images</h3>
+<div class="media-container">
   {% for img in imagenotes %}
-    <div class="card position-relative" style="width:12rem;">
-      
-      <!-- Croix de suppression -->
+    <div class="media-card">
       <form
         method="POST"
         action="{% url 'delete_imagenote' img.id %}"
-        style="position:absolute; top:0.5rem; right:0.5rem; z-index:10;"
         onsubmit="return confirm('Voulez-vous vraiment supprimer cette image ?');"
       >
         {% csrf_token %}
         <button
           type="submit"
-          class="btn btn-sm btn-danger"
-          style="width:1.5rem; height:1.5rem; padding:0; line-height:1;"
+          class="delete-btn"
           aria-label="Supprimer"
         >&times;</button>
       </form>
 
-      <!-- Lightbox / vignette -->
       <a
         href="{% static img.path %}"
         class="glightbox"
         data-gallery="note-{{ note.id }}"
       >
-        <img
-          src="{% static img.path %}"
-          class="card-img-top"
-          alt="ImageNote"
-          style="object-fit:cover; height:8rem;"
-        >
+        <div class="media-thumbnail" style="background-image: url('{% static img.path %}')"></div>
       </a>
 
-      <div class="card-body py-2 px-2">
-        <small>
-          Par {{ img.userEditeur.username }}<br>
-          {{ img.date|date:"d/m/Y H:i" }}
-        </small>
+      <div class="media-content">
+        <div class="media-info">
+          <div><i class="bi bi-person-circle me-1"></i> {{ img.userEditeur.username }}</div>
+          <div><i class="bi bi-clock me-1"></i> {{ img.date|date:"d/m/Y H:i" }}</div>
+        </div>
       </div>
     </div>
   {% empty %}
-    <p>Aucune image pour cette note.</p>
+    <p class="empty-message">Aucune image pour cette note.</p>
   {% endfor %}
 </div>
 
-
-<h3>PDFs</h3>
-<div class="d-flex flex-wrap gap-3">
+<h3 class="section-title"><i class="bi bi-file-earmark-pdf me-2"></i>PDFs</h3>
+<div class="media-container">
   {% for pdf in pdfnotes %}
-    <div class="card position-relative" style="width:12rem;">
-      <!-- Croix de suppression -->
+    <div class="media-card">
       <form method="POST"
             action="{% url 'delete_pdfnote' pdf.id %}"
-            style="position:absolute; top:0.5rem; right:0.5rem; z-index:10;"
             onsubmit="return confirm('Supprimer ce PDF ?');">
         {% csrf_token %}
         <button type="submit"
-                class="btn btn-sm btn-danger"
-                style="width:1.5rem; height:1.5rem; padding:0; line-height:1;"
+                class="delete-btn"
                 aria-label="Supprimer PDF">
           &times;
         </button>
       </form>
 
-      <!-- Bouton lire -->
-      <div class="card-body p-2 text-center">
+      <div class="media-content text-center py-3">
         <i class="bi bi-file-earmark-pdf-fill"
-           style="font-size:2rem; color:#d9534f;"></i>
-        <p class="mt-2 mb-1" style="font-size:.9rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
-          {{ pdf.path|slice:"4:" }}  {# affiche juste le nom sans "pdf/" #}
+           style="font-size: 2.5rem; color:#dc3545;"></i>
+        <p class="media-title">
+          {{ pdf.path|slice:"4:" }}
         </p>
-        <button class="btn btn-outline-primary btn-sm"
+        <div class="media-info mb-2">
+          <div><i class="bi bi-person-circle me-1"></i> {{ pdf.userEditeur.username }}</div>
+          <div><i class="bi bi-clock me-1"></i> {{ pdf.date|date:"d/m/Y H:i" }}</div>
+        </div>
+        <button class="btn btn-sm btn-outline-primary"
                 data-bs-toggle="modal"
                 data-bs-target="#pdfModal{{ pdf.id }}">
-          Lire
+          <i class="bi bi-eye me-1"></i> Voir
         </button>
-      </div>
-      <div class="card-body py-2 px-2">
-        <small>
-          Par {{ pdf.userEditeur.username }}<br>
-          {{ pdf.date|date:"d/m/Y H:i" }}
-        </small>
       </div>
     </div>
 
@@ -233,25 +433,20 @@
       </div>
     </div>
   {% empty %}
-    <p>Aucun PDF ajouté pour cette note.</p>
+    <p class="empty-message">Aucun PDF ajouté pour cette note.</p>
   {% endfor %}
 </div>
 
-{# N'oubliez pas de charger les PdfNotes en vue #}
-
-
-
-
-
 {% if is_owner and collaborators %}
   <div class="collab-info">
-    Invité(s) : 
-    {% for c in collaborators %}
-      {{ c.userCollab.username }}{% if not forloop.last %}, {% endif %}
-    {% endfor %}
+    <i class="bi bi-people-fill me-2"></i> Collaborateurs:
+    <div class="user-list">
+      {% for c in collaborators %}
+        <span class="user-tag"><i class="bi bi-person me-1"></i>{{ c.userCollab.username }}</span>
+      {% endfor %}
+    </div>
   </div>
 {% endif %}
-
 
 <!-- initialisation de GLightbox -->
 <script src="{% static 'vendor/glightbox/js/glightbox.min.js' %}"></script>

@@ -36,4 +36,25 @@ urlpatterns = [
     path('note/<int:note_id>/generate-resume/', views.generate_resume, name='generate_resume'),
     path('note/<int:note_id>/resumes/', views.view_resumes, name='view_resumes'),
     path('resume/<int:resume_id>/delete/', views.delete_resume, name='delete_resume'),
+    
+    # URLs pour les quiz
+    path('note/<int:note_id>/generate-quiz/', views.generate_quiz, name='generate_quiz'),
+    path('note/<int:note_id>/quizzes/', views.view_quizzes, name='view_quizzes'),
+    path('quiz/<int:quiz_id>/delete/', views.delete_quiz, name='delete_quiz'),
+    
+    # URLs pour les audios, vidéos et OCR
+    path('note/<int:note_id>/create-audio/', views.create_audionote, name='create_audionote'),
+    path('audio/<int:audio_id>/delete/', views.delete_audionote, name='delete_audionote'),
+    
+    path('note/<int:note_id>/create-video/', views.create_videonote, name='create_videonote'),
+    path('video/<int:video_id>/delete/', views.delete_videonote, name='delete_videonote'),
+    
+    path('note/<int:note_id>/create-ocr/', views.create_ocrnote, name='create_ocrnote'),
+    path('ocr/<int:ocr_id>/delete/', views.delete_ocrnote, name='delete_ocrnote'),
+    
+    # URL pour l'assistant Eden
+    path('eden/', views.eden_chat, name='eden_chat'),
+    
+    # API Eden pour chat en bulle flottante
+    path('eden/api/', views.eden_api, name='eden_api'),
 ]
