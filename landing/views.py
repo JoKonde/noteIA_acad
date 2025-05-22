@@ -1,7 +1,7 @@
 import random
 from django.shortcuts import render, redirect
 from django.contrib import messages
-from .models import CustomUser, Contact, Cours,Note,Collaborateur,TextNote,ImageNote,PdfNote,TextNoteResume,QuizNote,EdenConversation,EdenMessage,AudioNote,VideoNote,OcrNote
+from .models import CustomUser, Contact, Cours,Note,Collaborateur,TextNote,ImageNote,PdfNote,TextNoteResume,QuizNote,EdenConversation,EdenMessage,AudioNote,VideoNote,OcrNote, AIProvider, APIKey, AIModel
 import jwt
 import os
 import datetime
@@ -723,21 +723,25 @@ Voici le texte à résumer:
         # Re-charger les variables d'environnement pour s'assurer qu'elles sont disponibles
         load_dotenv()
         
-        # Récupérer la clé API depuis les variables d'environnement
-        api_key = os.environ.get('OPENROUTER_API_KEY')
-        
-        if not api_key:
-            messages.error(request, "Clé API OpenRouter non configurée. Veuillez configurer la variable d'environnement OPENROUTER_API_KEY.")
+        # Récupérer le modèle actif et la clé API
+        model = get_active_ai_model('openrouter')
+        if not model:
+            messages.error(request, "Aucun modèle d'IA n'est configuré. Veuillez configurer un modèle dans les paramètres.")
             return redirect('note_detail', note_id=note_id)
         
-        # Préparation de la requête à l'API OpenRouter
+        api_key = get_api_key('openrouter')
+        if not api_key:
+            messages.error(request, "Clé API non configurée. Veuillez configurer une clé API dans les paramètres.")
+            return redirect('note_detail', note_id=note_id)
+        
+        # Préparation de la requête à l'API
         headers = {
             "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json"
         }
         
         data = {
-            "model": "deepseek/deepseek-r1:free",
+            "model": model.model_id,
             "messages": [
                 {
                     "role": "user",
@@ -746,9 +750,12 @@ Voici le texte à résumer:
             ]
         }
         
+        # Déterminer l'URL de l'API à partir du fournisseur
+        url_api = model.provider.url_api
+        
         # Envoi de la requête
         response = requests.post(
-            "https://openrouter.ai/api/v1/chat/completions",
+            url_api,
             headers=headers,
             json=data
         )
@@ -890,11 +897,15 @@ Voici le texte:
         # Re-charger les variables d'environnement
         load_dotenv()
         
-        # Récupérer la clé API
-        api_key = os.environ.get('OPENROUTER_API_KEY')
+        # Récupérer le modèle actif et la clé API
+        model = get_active_ai_model('openrouter')
+        if not model:
+            messages.error(request, "Aucun modèle d'IA n'est configuré. Veuillez configurer un modèle dans les paramètres.")
+            return redirect('note_detail', note_id=note_id)
         
+        api_key = get_api_key('openrouter')
         if not api_key:
-            messages.error(request, "Clé API OpenRouter non configurée.")
+            messages.error(request, "Clé API non configurée. Veuillez configurer une clé API dans les paramètres.")
             return redirect('note_detail', note_id=note_id)
         
         # Préparation de la requête
@@ -904,7 +915,7 @@ Voici le texte:
         }
         
         data = {
-            "model": "deepseek/deepseek-r1:free",
+            "model": model.model_id,
             "messages": [
                 {
                     "role": "user",
@@ -913,9 +924,12 @@ Voici le texte:
             ]
         }
         
+        # Déterminer l'URL de l'API à partir du fournisseur
+        url_api = model.provider.url_api
+        
         # Envoi de la requête
         response = requests.post(
-            "https://openrouter.ai/api/v1/chat/completions",
+            url_api,
             headers=headers,
             json=data
         )
@@ -1140,9 +1154,12 @@ def generate_eden_response(user, message):
         # Re-charger les variables d'environnement pour s'assurer qu'elles sont disponibles
         load_dotenv()
         
-        # Récupérer la clé API depuis les variables d'environnement
-        api_key = os.environ.get('OPENROUTER_API_KEY')
+        # Récupérer le modèle actif et la clé API
+        model = get_active_ai_model('openrouter')
+        if not model:
+            return "Je suis désolé, mais je rencontre un problème technique. Aucun modèle d'IA n'est configuré."
         
+        api_key = get_api_key('openrouter')
         if not api_key:
             return "Je suis désolé, mais je rencontre un problème technique. Ma clé API n'est pas configurée. Veuillez contacter l'administrateur."
         
@@ -1171,7 +1188,7 @@ Si l'utilisateur demande de créer un cours, une note ou d'effectuer une action 
 
         # Construire le message pour l'API
         data = {
-            "model": "deepseek/deepseek-r1:free",
+            "model": model.model_id,
             "messages": [
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": message}
@@ -1184,9 +1201,12 @@ Si l'utilisateur demande de créer un cours, une note ou d'effectuer une action 
             "Content-Type": "application/json"
         }
         
+        # Déterminer l'URL de l'API à partir du fournisseur
+        url_api = model.provider.url_api
+        
         # Envoi de la requête
         response = requests.post(
-            "https://openrouter.ai/api/v1/chat/completions",
+            url_api,
             headers=headers,
             json=data
         )
@@ -1476,9 +1496,12 @@ def generate_text_for_note(subject):
         # Re-charger les variables d'environnement
         load_dotenv()
         
-        # Récupérer la clé API
-        api_key = os.environ.get('OPENROUTER_API_KEY')
+        # Récupérer le modèle actif et la clé API
+        model = get_active_ai_model('openrouter')
+        if not model:
+            return "Désolé, je ne peux pas générer de texte car aucun modèle d'IA n'est configuré."
         
+        api_key = get_api_key('openrouter')
         if not api_key:
             return "Désolé, je ne peux pas générer de texte car ma clé API n'est pas configurée."
         
@@ -1502,15 +1525,18 @@ Si le sujet contient des aspects techniques, scientifiques ou mathématiques, in
         }
         
         data = {
-            "model": "deepseek/deepseek-r1:free",
+            "model": model.model_id,
             "messages": [
                 {"role": "user", "content": prompt}
             ]
         }
         
+        # Déterminer l'URL de l'API à partir du fournisseur
+        url_api = model.provider.url_api
+        
         # Envoi de la requête
         response = requests.post(
-            "https://openrouter.ai/api/v1/chat/completions",
+            url_api,
             headers=headers,
             json=data
         )
@@ -2122,4 +2148,672 @@ def profile(request):
     except Exception as e:
         messages.error(request, f"Une erreur s'est produite: {str(e)}")
         return redirect('dashboard')
+
+# Fonctions pour la gestion des API d'IA
+def api_configuration(request):
+    """Vue pour la page de configuration des API d'IA"""
+    user = get_current_user(request)
+    if not user:
+        messages.error(request, "Veuillez vous connecter pour accéder à la configuration.")
+        return redirect('login')
+    
+    # Vérifier si l'utilisateur est l'administrateur (username: root45)
+    if user.username != 'root45':
+        messages.error(request, "Vous n'avez pas les droits pour accéder à cette page. Seul l'administrateur peut configurer les API.")
+        return redirect('dashboard')
+    
+    # Récupérer tous les fournisseurs et leurs modèles
+    providers = AIProvider.objects.all().prefetch_related('models', 'api_keys')
+    
+    # Vérifier si des données par défaut doivent être créées
+    if not providers.exists():
+        create_default_ai_providers()
+        providers = AIProvider.objects.all().prefetch_related('models', 'api_keys')
+    
+    if request.method == "POST":
+        action = request.POST.get('action')
+        
+        if action == 'add_api_key':
+            provider_id = request.POST.get('provider_id')
+            api_key = request.POST.get('api_key')
+            
+            if provider_id and api_key:
+                provider = get_object_or_404(AIProvider, id=provider_id)
+                
+                # Supprimer les anciennes clés pour ce fournisseur
+                APIKey.objects.filter(provider=provider).delete()
+                
+                # Créer et enregistrer la nouvelle clé
+                new_key = APIKey(provider=provider)
+                new_key.set_key(api_key)
+                new_key.save()
+                
+                messages.success(request, f"Clé API ajoutée pour {provider.nom}")
+                return redirect('api_configuration')
+        
+        elif action == 'toggle_model':
+            model_id = request.POST.get('model_id')
+            
+            if model_id:
+                model = get_object_or_404(AIModel, id=model_id)
+                model.est_actif = not model.est_actif
+                
+                # Si on active ce modèle comme défaut, désactiver les autres modèles par défaut du même fournisseur
+                if model.est_defaut and model.est_actif:
+                    AIModel.objects.filter(provider=model.provider, est_defaut=True).exclude(id=model.id).update(est_actif=False)
+                
+                model.save()
+                
+                status = "activé" if model.est_actif else "désactivé"
+                messages.success(request, f"Modèle {model.nom} {status}")
+                return redirect('api_configuration')
+        
+        elif action == 'set_default_model':
+            model_id = request.POST.get('model_id')
+            
+            if model_id:
+                model = get_object_or_404(AIModel, id=model_id)
+                
+                # Désactiver tous les modèles par défaut pour ce fournisseur
+                AIModel.objects.filter(provider=model.provider, est_defaut=True).update(est_defaut=False)
+                
+                # Définir ce modèle comme défaut
+                model.est_defaut = True
+                model.est_actif = True  # Activer automatiquement le modèle par défaut
+                model.save()
+                
+                messages.success(request, f"Modèle {model.nom} défini comme modèle par défaut pour {model.provider.nom}")
+                return redirect('api_configuration')
+        
+        elif action == 'add_model':
+            provider_id = request.POST.get('provider_id')
+            nom = request.POST.get('nom')
+            model_id = request.POST.get('model_id')
+            description = request.POST.get('description')
+            est_gratuit = request.POST.get('est_gratuit') == 'on'
+            
+            if provider_id and nom and model_id:
+                provider = get_object_or_404(AIProvider, id=provider_id)
+                
+                # Vérifier si le modèle existe déjà
+                model_exists = AIModel.objects.filter(provider=provider, model_id=model_id).exists()
+                if model_exists:
+                    messages.error(request, f"Un modèle avec l'ID '{model_id}' existe déjà pour {provider.nom}")
+                    return redirect('api_configuration')
+                
+                # Déterminer l'ordre (en prenant le dernier + 1)
+                last_order = AIModel.objects.filter(provider=provider).order_by('-ordre').values_list('ordre', flat=True).first() or 0
+                
+                # Créer le nouveau modèle
+                AIModel.objects.create(
+                    provider=provider,
+                    nom=nom,
+                    model_id=model_id,
+                    description=description or f"Modèle {nom} pour {provider.nom}",
+                    est_gratuit=est_gratuit,
+                    est_actif=False,
+                    est_defaut=False,
+                    ordre=last_order + 1
+                )
+                
+                messages.success(request, f"Modèle {nom} ajouté avec succès")
+                return redirect('api_configuration')
+        
+        elif action == 'delete_model':
+            model_id = request.POST.get('model_id')
+            
+            if model_id:
+                model = get_object_or_404(AIModel, id=model_id)
+                model_name = model.nom
+                provider_name = model.provider.nom
+                
+                # Ne pas supprimer le modèle par défaut
+                if model.est_defaut:
+                    messages.error(request, f"Impossible de supprimer le modèle par défaut. Veuillez d'abord définir un autre modèle par défaut.")
+                    return redirect('api_configuration')
+                
+                # Supprimer le modèle
+                model.delete()
+                
+                messages.success(request, f"Modèle {model_name} de {provider_name} supprimé avec succès")
+                return redirect('api_configuration')
+    
+    # Préparer les données pour le template
+    providers_data = []
+    for provider in providers:
+        has_api_key = provider.api_keys.filter(est_active=True).exists()
+        
+        # Regrouper les modèles par type (gratuit ou payant)
+        free_models = provider.models.filter(est_gratuit=True)
+        paid_models = provider.models.filter(est_gratuit=False)
+        
+        providers_data.append({
+            'provider': provider,
+            'has_api_key': has_api_key,
+            'free_models': free_models,
+            'paid_models': paid_models
+        })
+    
+    return render(request, 'landing/api_configuration.html', {
+        'providers_data': providers_data,
+        'user_contact': user.contact
+    })
+
+def create_default_ai_providers():
+    """Crée les fournisseurs d'IA et les modèles par défaut"""
+    # 1. OpenRouter
+    openrouter, created = AIProvider.objects.get_or_create(
+        code='openrouter',
+        defaults={
+            'nom': 'OpenRouter',
+            'description': 'Plateforme qui donne accès à plusieurs modèles d\'IA via une seule API',
+            'url_api': 'https://openrouter.ai/api/v1/chat/completions',
+            'est_actif': True
+        }
+    )
+    
+    # Modèles gratuits OpenRouter
+    free_models = [
+        {
+            'nom': 'DeepSeek R1 (Free)',
+            'model_id': 'deepseek/deepseek-r1:free',
+            'description': 'Modèle généraliste performant pour tous types de tâches',
+            'est_gratuit': True,
+            'est_defaut': True,
+            'est_actif': True,
+            'ordre': 1
+        },
+        {
+            'nom': 'Mistral DevStral Small (Free)',
+            'model_id': 'mistralai/devstral-small:free',
+            'description': 'Modèle compact de Mistral AI',
+            'est_gratuit': True,
+            'ordre': 2
+        },
+        {
+            'nom': 'Google Gemma 3n-e4b-it (Free)',
+            'model_id': 'google/gemma-3n-e4b-it:free',
+            'description': 'Modèle léger de Google',
+            'est_gratuit': True,
+            'ordre': 3
+        },
+        {
+            'nom': 'Meta Llama 3.3 8B Instruct (Free)',
+            'model_id': 'meta-llama/llama-3.3-8b-instruct:free',
+            'description': 'Modèle instruct de Meta',
+            'est_gratuit': True,
+            'ordre': 4
+        },
+        {
+            'nom': 'Deep Hermes 3 Mistral 24B (Free)',
+            'model_id': 'nousresearch/deephermes-3-mistral-24b-preview:free',
+            'description': 'Modèle puissant basé sur Mistral',
+            'est_gratuit': True,
+            'ordre': 5
+        },
+        {
+            'nom': 'Microsoft Phi-4 Reasoning Plus (Free)',
+            'model_id': 'microsoft/phi-4-reasoning-plus:free',
+            'description': 'Modèle de raisonnement avancé de Microsoft',
+            'est_gratuit': True,
+            'ordre': 6
+        },
+        {
+            'nom': 'InternVL3 14B (Free)',
+            'model_id': 'opengvlab/internvl3-14b:free',
+            'description': 'Modèle multimodal avancé',
+            'est_gratuit': True,
+            'ordre': 7
+        },
+        {
+            'nom': 'Qwen3 30B (Free)',
+            'model_id': 'qwen/qwen3-30b-a3b:free',
+            'description': 'Modèle puissant de Qwen',
+            'est_gratuit': True,
+            'ordre': 8
+        },
+        {
+            'nom': 'Qwen3 8B (Free)',
+            'model_id': 'qwen/qwen3-8b:free',
+            'description': 'Version compacte du modèle Qwen',
+            'est_gratuit': True,
+            'ordre': 9
+        },
+        {
+            'nom': 'OpenRouter IA (Free)',
+            'model_id': 'nousresearch/deephermes-3-mistral-24b-preview:free',
+            'description': 'Modèle de OpenRouter',
+            'est_gratuit': True,
+            'ordre': 10
+        }
+    ]
+    
+    # Ajouter ou mettre à jour les modèles gratuits
+    for model_data in free_models:
+        AIModel.objects.update_or_create(
+            provider=openrouter,
+            model_id=model_data['model_id'],
+            defaults=model_data
+        )
+    
+    # 2. DeepSeek Officiel
+    deepseek, created = AIProvider.objects.get_or_create(
+        code='deepseek',
+        defaults={
+            'nom': 'DeepSeek Officiel',
+            'description': 'API officielle de DeepSeek pour accéder à leurs modèles',
+            'url_api': 'https://api.deepseek.com/chat/completions',
+            'est_actif': True
+        }
+    )
+    
+    # Modèles DeepSeek
+    deepseek_models = [
+        {
+            'nom': 'DeepSeek Chat',
+            'model_id': 'deepseek-chat',
+            'description': 'Modèle conversationnel de DeepSeek',
+            'est_gratuit': False,
+            'est_defaut': True,
+            'ordre': 1
+        },
+        {
+            'nom': 'DeepSeek Coder',
+            'model_id': 'deepseek-coder',
+            'description': 'Modèle spécialisé pour la génération de code',
+            'est_gratuit': False,
+            'ordre': 2
+        }
+    ]
+    
+    # Ajouter ou mettre à jour les modèles DeepSeek
+    for model_data in deepseek_models:
+        AIModel.objects.update_or_create(
+            provider=deepseek,
+            model_id=model_data['model_id'],
+            defaults=model_data
+        )
+    
+    # 3. OpenAI
+    openai, created = AIProvider.objects.get_or_create(
+        code='openai',
+        defaults={
+            'nom': 'OpenAI',
+            'description': 'API officielle d\'OpenAI pour accéder à GPT et d\'autres modèles',
+            'url_api': 'https://api.openai.com/v1/chat/completions',
+            'est_actif': True
+        }
+    )
+    
+    # Modèles OpenAI
+    openai_models = [
+        {
+            'nom': 'GPT-4o',
+            'model_id': 'gpt-4o',
+            'description': 'Dernière version multimodale du modèle GPT-4, très performant',
+            'est_gratuit': False,
+            'est_defaut': True,
+            'ordre': 1
+        },
+        {
+            'nom': 'GPT-4o-mini',
+            'model_id': 'gpt-4o-mini',
+            'description': 'Version allégée et économique de GPT-4o',
+            'est_gratuit': False,
+            'ordre': 2
+        },
+        {
+            'nom': 'GPT-4 Turbo',
+            'model_id': 'gpt-4-turbo',
+            'description': 'Version optimisée du modèle GPT-4 avec contexte étendu',
+            'est_gratuit': False,
+            'ordre': 3
+        },
+        {
+            'nom': 'GPT-3.5 Turbo',
+            'model_id': 'gpt-3.5-turbo',
+            'description': 'Modèle économique et rapide',
+            'est_gratuit': False,
+            'ordre': 4
+        }
+    ]
+    
+    # Ajouter ou mettre à jour les modèles OpenAI
+    for model_data in openai_models:
+        AIModel.objects.update_or_create(
+            provider=openai,
+            model_id=model_data['model_id'],
+            defaults=model_data
+        )
+
+def get_active_ai_model(provider_code='openrouter'):
+    """
+    Retourne le modèle actif pour un fournisseur donné
+    Si aucun modèle n'est actif, retourne le modèle par défaut
+    """
+    try:
+        # Essayer d'abord de trouver un modèle actif
+        model = AIModel.objects.filter(
+            provider__code=provider_code,
+            est_actif=True
+        ).first()
+        
+        # Si aucun modèle actif, chercher le modèle par défaut
+        if not model:
+            model = AIModel.objects.filter(
+                provider__code=provider_code,
+                est_defaut=True
+            ).first()
+        
+        # Si toujours rien, utiliser DeepSeek R1 Free comme fallback
+        if not model and provider_code != 'openrouter':
+            model = AIModel.objects.filter(
+                provider__code='openrouter',
+                model_id='deepseek/deepseek-r1:free'
+            ).first()
+        
+        return model
+    except Exception:
+        # En cas d'erreur, retourner None
+        return None
+
+def get_api_key(provider_code):
+    """Retourne la clé API pour un fournisseur donné"""
+    try:
+        api_key = APIKey.objects.filter(
+            provider__code=provider_code,
+            est_active=True
+        ).first()
+        
+        if api_key:
+            return api_key.get_key()
+        
+        # Si pas de clé spécifique pour ce fournisseur et que c'est OpenRouter, 
+        # utiliser la variable d'environnement
+        if provider_code == 'openrouter':
+            return os.environ.get('OPENROUTER_API_KEY')
+        
+        return None
+    except Exception:
+        # En cas d'erreur, utiliser la variable d'environnement pour OpenRouter
+        if provider_code == 'openrouter':
+            return os.environ.get('OPENROUTER_API_KEY')
+        return None
+
+def refresh_ai_models(force=False):
+    """
+    Rafraîchit la liste des modèles d'IA
+    Si force=True, tous les modèles seront mis à jour même s'ils existent déjà
+    """
+    # Récupérer ou créer les fournisseurs
+    openrouter, _ = AIProvider.objects.get_or_create(
+        code='openrouter',
+        defaults={
+            'nom': 'OpenRouter',
+            'description': 'Plateforme qui donne accès à plusieurs modèles d\'IA via une seule API',
+            'url_api': 'https://openrouter.ai/api/v1/chat/completions',
+            'est_actif': True
+        }
+    )
+    
+    # Liste à jour des modèles gratuits OpenRouter
+    free_models = [
+        {
+            'nom': 'DeepSeek R1 (Free)',
+            'model_id': 'deepseek/deepseek-r1:free',
+            'description': 'Modèle généraliste performant pour tous types de tâches',
+            'est_gratuit': True,
+            'est_defaut': True,
+            'est_actif': True,
+            'ordre': 1
+        },
+        {
+            'nom': 'Mistral DevStral Small (Free)',
+            'model_id': 'mistralai/devstral-small:free',
+            'description': 'Modèle compact de Mistral AI',
+            'est_gratuit': True,
+            'ordre': 2
+        },
+        {
+            'nom': 'Google Gemma 3n-e4b-it (Free)',
+            'model_id': 'google/gemma-3n-e4b-it:free',
+            'description': 'Modèle léger de Google',
+            'est_gratuit': True,
+            'ordre': 3
+        },
+        {
+            'nom': 'Meta Llama 3.3 8B Instruct (Free)',
+            'model_id': 'meta-llama/llama-3.3-8b-instruct:free',
+            'description': 'Modèle instruct de Meta',
+            'est_gratuit': True,
+            'ordre': 4
+        },
+        {
+            'nom': 'Deep Hermes 3 Mistral 24B (Free)',
+            'model_id': 'nousresearch/deephermes-3-mistral-24b-preview:free',
+            'description': 'Modèle puissant basé sur Mistral',
+            'est_gratuit': True,
+            'ordre': 5
+        },
+        {
+            'nom': 'Microsoft Phi-4 Reasoning Plus (Free)',
+            'model_id': 'microsoft/phi-4-reasoning-plus:free',
+            'description': 'Modèle de raisonnement avancé de Microsoft',
+            'est_gratuit': True,
+            'ordre': 6
+        },
+        {
+            'nom': 'InternVL3 14B (Free)',
+            'model_id': 'opengvlab/internvl3-14b:free',
+            'description': 'Modèle multimodal avancé',
+            'est_gratuit': True,
+            'ordre': 7
+        },
+        {
+            'nom': 'Qwen3 30B (Free)',
+            'model_id': 'qwen/qwen3-30b-a3b:free',
+            'description': 'Modèle puissant de Qwen',
+            'est_gratuit': True,
+            'ordre': 8
+        },
+        {
+            'nom': 'Qwen3 8B (Free)',
+            'model_id': 'qwen/qwen3-8b:free',
+            'description': 'Version compacte du modèle Qwen',
+            'est_gratuit': True,
+            'ordre': 9
+        },
+        {
+            'nom': 'OpenRouter IA (Free)',
+            'model_id': 'nousresearch/deephermes-3-mistral-24b-preview:free',
+            'description': 'Modèle de OpenRouter',
+            'est_gratuit': True,
+            'ordre': 10
+        }
+    ]
+    
+    # Conserver le modèle par défaut actuel pour OpenRouter
+    default_model = AIModel.objects.filter(provider=openrouter, est_defaut=True).first()
+    default_model_id = default_model.model_id if default_model else 'deepseek/deepseek-r1:free'
+    
+    # Si force=True, supprimer tous les modèles existants de OpenRouter
+    if force:
+        # Ne garder que les modèles personnalisés (qui ne sont pas dans notre liste)
+        model_ids_to_keep = [model['model_id'] for model in free_models]
+        custom_models = AIModel.objects.filter(provider=openrouter).exclude(model_id__in=model_ids_to_keep)
+        
+        # Supprimer tous les modèles standard
+        AIModel.objects.filter(provider=openrouter, model_id__in=model_ids_to_keep).delete()
+    
+    # Ajouter ou mettre à jour les modèles
+    for model_data in free_models:
+        # Si c'est le modèle par défaut précédent, garder son statut
+        if model_data['model_id'] == default_model_id:
+            model_data['est_defaut'] = True
+        
+        # Mettre à jour ou créer le modèle
+        AIModel.objects.update_or_create(
+            provider=openrouter,
+            model_id=model_data['model_id'],
+            defaults=model_data
+        )
+    
+    return len(free_models)
+
+
+def api_configuration(request):
+    """Vue pour la page de configuration des API d'IA"""
+    user = get_current_user(request)
+    if not user:
+        messages.error(request, "Veuillez vous connecter pour accéder à la configuration.")
+        return redirect('login')
+    
+    # Vérifier si l'utilisateur est l'administrateur (username: root45)
+    if user.username != 'root45':
+        messages.error(request, "Vous n'avez pas les droits pour accéder à cette page. Seul l'administrateur peut configurer les API.")
+        return redirect('dashboard')
+    
+    # Récupérer tous les fournisseurs et leurs modèles
+    providers = AIProvider.objects.all().prefetch_related('models', 'api_keys')
+    
+    # Vérifier si des données par défaut doivent être créées
+    if not providers.exists():
+        create_default_ai_providers()
+        providers = AIProvider.objects.all().prefetch_related('models', 'api_keys')
+    
+    if request.method == "POST":
+        action = request.POST.get('action')
+        
+        if action == 'add_api_key':
+            provider_id = request.POST.get('provider_id')
+            api_key = request.POST.get('api_key')
+            
+            if provider_id and api_key:
+                provider = get_object_or_404(AIProvider, id=provider_id)
+                
+                # Supprimer les anciennes clés pour ce fournisseur
+                APIKey.objects.filter(provider=provider).delete()
+                
+                # Créer et enregistrer la nouvelle clé
+                new_key = APIKey(provider=provider)
+                new_key.set_key(api_key)
+                new_key.save()
+                
+                messages.success(request, f"Clé API ajoutée pour {provider.nom}")
+                return redirect('api_configuration')
+        
+        elif action == 'toggle_model':
+            model_id = request.POST.get('model_id')
+            
+            if model_id:
+                model = get_object_or_404(AIModel, id=model_id)
+                model.est_actif = not model.est_actif
+                
+                # Si on active ce modèle comme défaut, désactiver les autres modèles par défaut du même fournisseur
+                if model.est_defaut and model.est_actif:
+                    AIModel.objects.filter(provider=model.provider, est_defaut=True).exclude(id=model.id).update(est_actif=False)
+                
+                model.save()
+                
+                status = "activé" if model.est_actif else "désactivé"
+                messages.success(request, f"Modèle {model.nom} {status}")
+                return redirect('api_configuration')
+        
+        elif action == 'set_default_model':
+            model_id = request.POST.get('model_id')
+            
+            if model_id:
+                model = get_object_or_404(AIModel, id=model_id)
+                
+                # Désactiver tous les modèles par défaut pour ce fournisseur
+                AIModel.objects.filter(provider=model.provider, est_defaut=True).update(est_defaut=False)
+                
+                # Définir ce modèle comme défaut
+                model.est_defaut = True
+                model.est_actif = True  # Activer automatiquement le modèle par défaut
+                model.save()
+                
+                messages.success(request, f"Modèle {model.nom} défini comme modèle par défaut pour {model.provider.nom}")
+                return redirect('api_configuration')
+        
+        elif action == 'add_model':
+            provider_id = request.POST.get('provider_id')
+            nom = request.POST.get('nom')
+            model_id = request.POST.get('model_id')
+            description = request.POST.get('description')
+            est_gratuit = request.POST.get('est_gratuit') == 'on'
+            
+            if provider_id and nom and model_id:
+                provider = get_object_or_404(AIProvider, id=provider_id)
+                
+                # Vérifier si le modèle existe déjà
+                model_exists = AIModel.objects.filter(provider=provider, model_id=model_id).exists()
+                if model_exists:
+                    messages.error(request, f"Un modèle avec l'ID '{model_id}' existe déjà pour {provider.nom}")
+                    return redirect('api_configuration')
+                
+                # Déterminer l'ordre (en prenant le dernier + 1)
+                last_order = AIModel.objects.filter(provider=provider).order_by('-ordre').values_list('ordre', flat=True).first() or 0
+                
+                # Créer le nouveau modèle
+                AIModel.objects.create(
+                    provider=provider,
+                    nom=nom,
+                    model_id=model_id,
+                    description=description or f"Modèle {nom} pour {provider.nom}",
+                    est_gratuit=est_gratuit,
+                    est_actif=False,
+                    est_defaut=False,
+                    ordre=last_order + 1
+                )
+                
+                messages.success(request, f"Modèle {nom} ajouté avec succès")
+                return redirect('api_configuration')
+        
+        elif action == 'delete_model':
+            model_id = request.POST.get('model_id')
+            
+            if model_id:
+                model = get_object_or_404(AIModel, id=model_id)
+                model_name = model.nom
+                provider_name = model.provider.nom
+                
+                # Ne pas supprimer le modèle par défaut
+                if model.est_defaut:
+                    messages.error(request, f"Impossible de supprimer le modèle par défaut. Veuillez d'abord définir un autre modèle par défaut.")
+                    return redirect('api_configuration')
+                
+                # Supprimer le modèle
+                model.delete()
+                
+                messages.success(request, f"Modèle {model_name} de {provider_name} supprimé avec succès")
+                return redirect('api_configuration')
+                
+        elif action == 'refresh_models':
+            # Rafraîchir les modèles
+            force_update = request.POST.get('force_update') == 'on'
+            count = refresh_ai_models(force=force_update)
+            messages.success(request, f"{count} modèles mis à jour avec succès")
+            return redirect('api_configuration')
+    
+    # Préparer les données pour le template
+    providers_data = []
+    for provider in providers:
+        has_api_key = provider.api_keys.filter(est_active=True).exists()
+        
+        # Regrouper les modèles par type (gratuit ou payant)
+        free_models = provider.models.filter(est_gratuit=True)
+        paid_models = provider.models.filter(est_gratuit=False)
+        
+        providers_data.append({
+            'provider': provider,
+            'has_api_key': has_api_key,
+            'free_models': free_models,
+            'paid_models': paid_models
+        })
+    
+    return render(request, 'landing/api_configuration.html', {
+        'providers_data': providers_data,
+        'user_contact': user.contact
+    })
 

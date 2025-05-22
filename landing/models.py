@@ -201,3 +201,62 @@ class EdenMessage(models.Model):
     
     class Meta:
         ordering = ['date']
+
+# Modèles pour la gestion des API d'IA
+
+class AIProvider(models.Model):
+    """Fournisseur d'API d'IA (OpenRouter, DeepSeek, OpenAI, etc.)"""
+    nom = models.CharField(max_length=100)
+    code = models.CharField(max_length=50, unique=True)  # identifiant unique pour le fournisseur
+    description = models.TextField(blank=True)
+    url_api = models.URLField()
+    est_actif = models.BooleanField(default=True)
+    
+    def __str__(self):
+        return self.nom
+
+class APIKey(models.Model):
+    """Clé API pour un fournisseur d'IA"""
+    provider = models.ForeignKey(AIProvider, on_delete=models.CASCADE, related_name='api_keys')
+    key_encrypted = models.BinaryField()  # Stockage chiffré de la clé API
+    date_ajout = models.DateTimeField(default=timezone.now)
+    est_active = models.BooleanField(default=True)
+    
+    def set_key(self, raw_key):
+        """Chiffre et stocke la clé API"""
+        cipher = AES.new(AES_KEY, AES.MODE_CBC)
+        ct_bytes = cipher.encrypt(pad(raw_key.encode(), AES.block_size))
+        # Stockage du vecteur d'initialisation (IV) avec le ciphertext
+        self.key_encrypted = cipher.iv + ct_bytes
+    
+    def get_key(self):
+        """Déchiffre et retourne la clé API"""
+        iv = self.key_encrypted[:AES.block_size]
+        ct = self.key_encrypted[AES.block_size:]
+        cipher = AES.new(AES_KEY, AES.MODE_CBC, iv)
+        try:
+            pt = unpad(cipher.decrypt(ct), AES.block_size)
+            return pt.decode()
+        except (ValueError, KeyError):
+            return None
+    
+    def __str__(self):
+        return f"Clé API pour {self.provider.nom} ({self.date_ajout.strftime('%d/%m/%Y')})"
+
+class AIModel(models.Model):
+    """Modèle d'IA disponible pour un fournisseur"""
+    provider = models.ForeignKey(AIProvider, on_delete=models.CASCADE, related_name='models')
+    nom = models.CharField(max_length=100)
+    model_id = models.CharField(max_length=100)  # ID utilisé lors de l'appel API
+    description = models.TextField(blank=True)
+    est_gratuit = models.BooleanField(default=False)
+    est_actif = models.BooleanField(default=False)
+    est_defaut = models.BooleanField(default=False)  # Si c'est le modèle par défaut
+    ordre = models.IntegerField(default=0)  # Pour trier les modèles
+    
+    class Meta:
+        ordering = ['provider', 'ordre', 'nom']
+        unique_together = ('provider', 'model_id')
+    
+    def __str__(self):
+        return f"{self.nom} ({self.provider.nom})"

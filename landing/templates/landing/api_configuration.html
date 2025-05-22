@@ -1,0 +1,328 @@
+{% extends "landing/dashboard.html" %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h2 class="mb-3">Configuration des API d'Intelligence Artificielle</h2>
+            <p class="text-muted">Gérez les clés API et les modèles d'IA disponibles pour NoteIA.</p>
+        </div>
+    </div>
+
+    <!-- Messages d'alerte -->
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <!-- Informations importantes -->
+    <div class="alert alert-info bg-light border-start border-5 border-info shadow-sm mb-4">
+        <div class="d-flex">
+            <div class="me-3">
+                <i class="bi bi-info-circle-fill text-info fs-3"></i>
+            </div>
+            <div>
+                <h5 class="text-info">Informations importantes</h5>
+                <p class="mb-0">Les clés API sont chiffrées avant d'être stockées dans la base de données pour une sécurité optimale. Seuls les modèles actifs seront utilisables par l'application.</p>
+                <p class="mb-0">Le modèle par défaut est utilisé quand aucun autre modèle actif n'est disponible. Si aucun modèle n'est défini, DeepSeek R1 (Free) sera utilisé.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bouton de rafraîchissement des modèles -->
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body">
+            <div class="d-flex align-items-center mb-3">
+                <div class="icon-box bg-success bg-opacity-10 text-success">
+                    <i class="bi bi-arrow-repeat fs-4"></i>
+                </div>
+                <h4 class="card-title mb-0 ms-3">Rafraîchir les modèles</h4>
+            </div>
+            <p class="text-muted">Si vous ne voyez pas tous les modèles attendus ou si vous souhaitez mettre à jour la liste, utilisez cette fonction.</p>
+            
+            <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="refresh_models">
+                
+                <div class="mb-3 form-check">
+                    <input type="checkbox" class="form-check-input" id="force_update" name="force_update">
+                    <label class="form-check-label" for="force_update">Forcer la mise à jour (supprime et recrée tous les modèles par défaut)</label>
+                </div>
+                
+                <button type="submit" class="btn btn-success">
+                    <i class="bi bi-arrow-repeat me-1"></i> Rafraîchir les modèles
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Onglets pour les fournisseurs d'API -->
+    <ul class="nav nav-tabs mb-4" id="providersTab" role="tablist">
+        {% for provider_data in providers_data %}
+        <li class="nav-item" role="presentation">
+            <button class="nav-link {% if forloop.first %}active{% endif %}" 
+                    id="tab-{{ provider_data.provider.code }}" 
+                    data-bs-toggle="tab" 
+                    data-bs-target="#panel-{{ provider_data.provider.code }}" 
+                    type="button" 
+                    role="tab" 
+                    aria-controls="panel-{{ provider_data.provider.code }}" 
+                    aria-selected="{% if forloop.first %}true{% else %}false{% endif %}">
+                {{ provider_data.provider.nom }}
+                {% if provider_data.has_api_key %}
+                <span class="badge bg-success ms-2">Clé configurée</span>
+                {% endif %}
+            </button>
+        </li>
+        {% endfor %}
+    </ul>
+
+    <!-- Contenu des onglets -->
+    <div class="tab-content" id="providersTabContent">
+        {% for provider_data in providers_data %}
+        <div class="tab-pane fade {% if forloop.first %}show active{% endif %}" 
+             id="panel-{{ provider_data.provider.code }}" 
+             role="tabpanel" 
+             aria-labelledby="tab-{{ provider_data.provider.code }}">
+            
+            <!-- Carte d'information du fournisseur -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-body">
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="icon-box bg-primary bg-opacity-10 text-primary">
+                            <i class="bi bi-robot fs-4"></i>
+                        </div>
+                        <h4 class="card-title mb-0 ms-3">{{ provider_data.provider.nom }}</h4>
+                    </div>
+                    <p class="text-muted">{{ provider_data.provider.description }}</p>
+                    
+                    <!-- Formulaire d'ajout de clé API -->
+                    <div class="card bg-light border-0 mb-4">
+                        <div class="card-body">
+                            <h5 class="mb-3">Configuration de la clé API</h5>
+                            <form method="post" class="mb-0">
+                                {% csrf_token %}
+                                <input type="hidden" name="action" value="add_api_key">
+                                <input type="hidden" name="provider_id" value="{{ provider_data.provider.id }}">
+                                
+                                <div class="input-group">
+                                    <input type="password" name="api_key" class="form-control" placeholder="Entrez votre clé API {{ provider_data.provider.nom }}" required>
+                                    <button type="submit" class="btn btn-primary">
+                                        {% if provider_data.has_api_key %}
+                                        <i class="bi bi-arrow-repeat me-1"></i> Mettre à jour
+                                        {% else %}
+                                        <i class="bi bi-key me-1"></i> Ajouter
+                                        {% endif %}
+                                    </button>
+                                </div>
+                                <small class="text-muted mt-2 d-block">La clé sera chiffrée avant d'être stockée.</small>
+                            </form>
+                        </div>
+                    </div>
+                    
+                    <!-- Formulaire d'ajout de modèle -->
+                    <div class="card bg-light border-0 mb-4">
+                        <div class="card-body">
+                            <h5 class="mb-3">Ajouter un nouveau modèle</h5>
+                            <form method="post">
+                                {% csrf_token %}
+                                <input type="hidden" name="action" value="add_model">
+                                <input type="hidden" name="provider_id" value="{{ provider_data.provider.id }}">
+                                
+                                <div class="row mb-3">
+                                    <div class="col-md-6">
+                                        <label for="nom-{{ provider_data.provider.id }}" class="form-label">Nom du modèle</label>
+                                        <input type="text" class="form-control" id="nom-{{ provider_data.provider.id }}" name="nom" placeholder="ex: Claude 3 Opus" required>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label for="model_id-{{ provider_data.provider.id }}" class="form-label">ID du modèle</label>
+                                        <input type="text" class="form-control" id="model_id-{{ provider_data.provider.id }}" name="model_id" placeholder="ex: anthropic/claude-3-opus-20240229" required>
+                                    </div>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="description-{{ provider_data.provider.id }}" class="form-label">Description</label>
+                                    <textarea class="form-control" id="description-{{ provider_data.provider.id }}" name="description" rows="2" placeholder="Description du modèle"></textarea>
+                                </div>
+                                
+                                <div class="mb-3 form-check">
+                                    <input type="checkbox" class="form-check-input" id="est_gratuit-{{ provider_data.provider.id }}" name="est_gratuit">
+                                    <label class="form-check-label" for="est_gratuit-{{ provider_data.provider.id }}">Modèle gratuit</label>
+                                </div>
+                                
+                                <button type="submit" class="btn btn-success">
+                                    <i class="bi bi-plus-circle me-1"></i> Ajouter le modèle
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                    
+                    <!-- Modèles gratuits -->
+                    {% if provider_data.free_models %}
+                    <div class="mb-4">
+                        <h5 class="border-bottom pb-2 mb-3">Modèles gratuits</h5>
+                        <div class="row g-3">
+                            {% for model in provider_data.free_models %}
+                            <div class="col-md-6 col-lg-4">
+                                <div class="card h-100 {% if model.est_defaut %}border-primary{% else %}border-0{% endif %}">
+                                    <div class="card-body">
+                                        <div class="d-flex justify-content-between align-items-start mb-2">
+                                            <h6 class="card-title mb-0">{{ model.nom }}</h6>
+                                            <div class="form-check form-switch">
+                                                <form method="post" class="d-inline">
+                                                    {% csrf_token %}
+                                                    <input type="hidden" name="action" value="toggle_model">
+                                                    <input type="hidden" name="model_id" value="{{ model.id }}">
+                                                    <button type="submit" class="btn btn-sm {% if model.est_actif %}btn-danger{% else %}btn-success{% endif %}" title="{% if model.est_actif %}Désactiver{% else %}Activer{% endif %} ce modèle">
+                                                        <i class="bi {% if model.est_actif %}bi-toggle-on{% else %}bi-toggle-off{% endif %}"></i>
+                                                        {% if model.est_actif %}Actif{% else %}Inactif{% endif %}
+                                                    </button>
+                                                </form>
+                                            </div>
+                                        </div>
+                                        <p class="card-text small text-muted">{{ model.description }}</p>
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <span class="badge bg-success">Gratuit</span>
+                                            {% if model.est_defaut %}
+                                            <span class="badge bg-primary">Modèle par défaut</span>
+                                            {% else %}
+                                            <form method="post" class="d-inline">
+                                                {% csrf_token %}
+                                                <input type="hidden" name="action" value="set_default_model">
+                                                <input type="hidden" name="model_id" value="{{ model.id }}">
+                                                <button type="submit" class="btn btn-sm btn-outline-primary ms-1" title="Définir comme modèle par défaut">
+                                                    <i class="bi bi-star"></i> Par défaut
+                                                </button>
+                                            </form>
+                                            
+                                            <!-- Bouton de suppression -->
+                                            <form method="post" class="d-inline" onsubmit="return confirm('Êtes-vous sûr de vouloir supprimer le modèle {{ model.nom }}?');">
+                                                {% csrf_token %}
+                                                <input type="hidden" name="action" value="delete_model">
+                                                <input type="hidden" name="model_id" value="{{ model.id }}">
+                                                <button type="submit" class="btn btn-sm btn-outline-danger ms-1" title="Supprimer ce modèle">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            </form>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Modèles payants -->
+                    {% if provider_data.paid_models %}
+                    <div>
+                        <h5 class="border-bottom pb-2 mb-3">Modèles payants</h5>
+                        <div class="row g-3">
+                            {% for model in provider_data.paid_models %}
+                            <div class="col-md-6 col-lg-4">
+                                <div class="card h-100 {% if model.est_defaut %}border-primary{% else %}border-0{% endif %}">
+                                    <div class="card-body">
+                                        <div class="d-flex justify-content-between align-items-start mb-2">
+                                            <h6 class="card-title mb-0">{{ model.nom }}</h6>
+                                            <div class="form-check form-switch">
+                                                <form method="post" class="d-inline">
+                                                    {% csrf_token %}
+                                                    <input type="hidden" name="action" value="toggle_model">
+                                                    <input type="hidden" name="model_id" value="{{ model.id }}">
+                                                    <button type="submit" class="btn btn-sm {% if model.est_actif %}btn-danger{% else %}btn-success{% endif %}" title="{% if model.est_actif %}Désactiver{% else %}Activer{% endif %} ce modèle">
+                                                        <i class="bi {% if model.est_actif %}bi-toggle-on{% else %}bi-toggle-off{% endif %}"></i>
+                                                        {% if model.est_actif %}Actif{% else %}Inactif{% endif %}
+                                                    </button>
+                                                </form>
+                                            </div>
+                                        </div>
+                                        <p class="card-text small text-muted">{{ model.description }}</p>
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <span class="badge bg-warning text-dark">Payant</span>
+                                            {% if model.est_defaut %}
+                                            <span class="badge bg-primary">Modèle par défaut</span>
+                                            {% else %}
+                                            <form method="post" class="d-inline">
+                                                {% csrf_token %}
+                                                <input type="hidden" name="action" value="set_default_model">
+                                                <input type="hidden" name="model_id" value="{{ model.id }}">
+                                                <button type="submit" class="btn btn-sm btn-outline-primary ms-1" title="Définir comme modèle par défaut">
+                                                    <i class="bi bi-star"></i> Par défaut
+                                                </button>
+                                            </form>
+                                            
+                                            <!-- Bouton de suppression -->
+                                            <form method="post" class="d-inline" onsubmit="return confirm('Êtes-vous sûr de vouloir supprimer le modèle {{ model.nom }}?');">
+                                                {% csrf_token %}
+                                                <input type="hidden" name="action" value="delete_model">
+                                                <input type="hidden" name="model_id" value="{{ model.id }}">
+                                                <button type="submit" class="btn btn-sm btn-outline-danger ms-1" title="Supprimer ce modèle">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            </form>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        
+                        {% if not provider_data.has_api_key %}
+                        <div class="alert alert-warning mt-3">
+                            <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                            Vous devez ajouter une clé API pour activer les modèles payants.
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<style>
+    /* Style personnalisé pour les interrupteurs (toggles) */
+    .form-check-input.toggle-model {
+        width: 3rem;
+        height: 1.5rem;
+        cursor: pointer;
+    }
+    
+    /* Animation des cartes */
+    .card {
+        transition: all 0.3s ease;
+    }
+    .card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1) !important;
+    }
+    
+    /* Style pour les onglets */
+    .nav-tabs .nav-link {
+        border-radius: 0;
+        padding: 0.7rem 1.5rem;
+        color: #6c757d;
+        font-weight: 500;
+    }
+    
+    .nav-tabs .nav-link.active {
+        color: #2c3e50;
+        font-weight: 600;
+        border-bottom: 2px solid #2c3e50;
+    }
+    
+    /* Badge dans les onglets */
+    .nav-tabs .badge {
+        font-size: 0.65rem;
+        padding: 0.25em 0.6em;
+    }
+</style>
+{% endblock %} 

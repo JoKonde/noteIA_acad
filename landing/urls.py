@@ -8,6 +8,7 @@ urlpatterns = [
     path('signup/', views.signup, name='signup'),
     path('dashboard/', views.dashboard, name='dashboard'),
     path('profile/', views.profile, name='profile'),
+    path('api-configuration/', views.api_configuration, name='api_configuration'),
     path('success-compte/', views.account_success, name='account_success'),
     # URL pour les cours
     path('cours/', views.list_courses, name='list_courses'),
