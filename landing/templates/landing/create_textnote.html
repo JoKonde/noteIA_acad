@@ -2,9 +2,9 @@
 {% block content %}
 <style>
   form {
-    max-width: 600px;
+    max-width: 800px;
     margin: 2rem auto;
-    padding: 1rem;
+    padding: 1.5rem;
     background: #f9f9f9;
     border-radius: 8px;
     box-shadow: 0 2px 8px rgba(0,0,0,0.1);
@@ -15,7 +15,9 @@
     border: 1px solid #ddd;
     border-radius: 5px;
     resize: vertical;
-    min-height: 150px;
+    min-height: 200px;
+    font-family: monospace;
+    font-size: 14px;
   }
   form button {
     background: #2A4B7E;
@@ -29,6 +31,62 @@
   form button:hover {
     background: #1E3A5A;
   }
+  
+  .help-box {
+    background: #e9f7fe;
+    border: 1px solid #bde3f7;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 1.5rem;
+  }
+  
+  .help-box h4 {
+    color: #0c5460;
+    margin-top: 0;
+    font-size: 1rem;
+  }
+  
+  .help-box ul {
+    margin-bottom: 0;
+  }
+  
+  .help-box code {
+    background: #fff;
+    padding: 0.2rem 0.4rem;
+    border-radius: 3px;
+    font-family: monospace;
+    font-size: 0.9rem;
+    color: #007bff;
+  }
+  
+  .formula-examples {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-top: 1rem;
+  }
+  
+  .formula-example {
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    padding: 0.75rem;
+  }
+  
+  .formula-example p {
+    margin: 0;
+    font-size: 0.9rem;
+  }
+  
+  .formula-example code {
+    display: block;
+    margin-top: 0.5rem;
+    padding: 0.5rem;
+    background: #f8f9fa;
+    border: 1px solid #eee;
+    border-radius: 3px;
+    white-space: pre-wrap;
+  }
 </style>
 
 <h2>Ajouter un texte à la note "{{ note.titre }}"</h2>
@@ -41,9 +99,32 @@
     {% endfor %}
   </ul>
 {% endif %}
+
+<div class="help-box">
+  <h4><i class="bi bi-info-circle-fill me-2"></i>Comment écrire des formules mathématiques, physiques et électriques</h4>
+  <p>Vous pouvez inclure des formules mathématiques dans votre texte en utilisant la syntaxe LaTeX :</p>
+  <ul>
+    <li>Pour une formule en ligne, utilisez <code>$...$</code> exemple: <code>$E = mc^2$</code></li>
+    <li>Pour une formule centrée sur sa propre ligne, utilisez <code>$$...$$</code> exemple: <code>$$\vec{F} = m\vec{a}$$</code></li>
+  </ul>
+  
+  <div class="formula-examples">
+    <div class="formula-example">
+      <p>Formules physiques :</p>
+      <code>$\vec{E} = \frac{1}{4\pi\varepsilon_0} \frac{q}{r^2}\vec{e_r}$</code>
+      <code>$$\oint_S \vec{E} \cdot d\vec{S} = \frac{Q}{\varepsilon_0}$$</code>
+    </div>
+    <div class="formula-example">
+      <p>Formules électriques :</p>
+      <code>$I = \frac{U}{R}$</code>
+      <code>$$P = U \times I = R \times I^2 = \frac{U^2}{R}$$</code>
+    </div>
+  </div>
+</div>
+
 <form method="POST">
   {% csrf_token %}
-  <textarea name="texte" placeholder="Entrez votre texte ici" required></textarea>
+  <textarea name="texte" placeholder="Entrez votre texte ici. Vous pouvez inclure des formules mathématiques avec la syntaxe $...$ ou $$...$$" required></textarea>
   <button type="submit">Ajouter le texte</button>
 </form>
 {% endblock %}

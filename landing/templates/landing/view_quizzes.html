@@ -8,6 +8,31 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <!-- MathJax pour les formules mathématiques -->
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script>
+        window.MathJax = {
+            tex: {
+                inlineMath: [['\\(', '\\)'], ['$', '$']],
+                displayMath: [['\\[', '\\]'], ['$$', '$$']],
+                processEscapes: true
+            },
+            options: {
+                enableMenu: false
+            },
+            startup: {
+                pageReady: function() {
+                    return MathJax.startup.defaultPageReady().then(function() {
+                        // Fonction pour initialiser MathJax après le chargement dynamique du contenu
+                        window.typeset = function() {
+                            MathJax.typesetPromise();
+                        };
+                    });
+                }
+            }
+        };
+    </script>
     <style>
         .quiz-container {
             margin-bottom: 30px;
@@ -105,7 +130,8 @@
 
                 <script>
                     // Store questions as a JavaScript object for this quiz
-                    var quizQuestions_{{ quiz.id }} = {{ quiz.questions|safe }};
+                    // Parse the JSON string into a JavaScript object
+                    var quizQuestions_{{ quiz.id }} = JSON.parse('{{ quiz.questions|escapejs }}');
                     
                     // Function to start this quiz
                     function startQuiz_{{ quiz.id }}() {
@@ -153,6 +179,11 @@
                             
                             questionsContainer.appendChild(questionEl);
                         });
+                        
+                        // Activer MathJax pour rendre les formules mathématiques
+                        if (window.typeset) {
+                            window.typeset();
+                        }
                     }
                 </script>
             {% endfor %}
@@ -161,6 +192,10 @@
             <script>
                 function showAnswer(quizId, questionIndex) {
                     document.getElementById(`answer-${quizId}-${questionIndex}`).classList.remove('hidden');
+                    // Rafraîchir MathJax pour les réponses qui viennent d'apparaître
+                    if (window.typeset) {
+                        window.typeset();
+                    }
                 }
                 
                 function startQuiz(quizId) {

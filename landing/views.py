@@ -698,8 +698,25 @@ def generate_resume(request, note_id):
     if len(all_texts) > 6000:
         all_texts = all_texts[:6000] + "..."
     
-    # Préparer le prompt pour le résumé
-    prompt = f"Fais un résumé concis et structuré du texte suivant. Identifie et mets en évidence les points clés:\n\n{all_texts}"
+    # Préparer le prompt pour le résumé avec instructions spécifiques pour les formules mathématiques
+    prompt = f"""Fais un résumé concis et structuré du texte suivant. Identifie et mets en évidence les points clés.
+
+Si le texte contient des formules mathématiques, physiques ou électriques, formate-les correctement pour MathJax en utilisant ces règles:
+1. Pour les formules en ligne, utilise $...$ (par exemple: $x^2 + y^2 = r^2$)
+2. Pour les formules centrées sur leur propre ligne, utilise $$...$$ (par exemple: $$\\frac{{dx}}{{dt}} = v$$)
+3. Pour les formules de physique et d'électricité, utilise les conventions LaTeX appropriées:
+   - Vecteurs: $\\vec{{E}}$ pour un champ électrique
+   - Unités: $\\text{{V}}$, $\\text{{A}}$, $\\text{{W}}$, $\\Omega$, $\\text{{F}}$, $\\text{{H}}$
+   - Constantes: $\\varepsilon_0$ pour la permittivité du vide
+   - Indices et exposants: $R_{{eq}}$ pour résistance équivalente
+   - Dérivées partielles: $\\frac{{\\partial V}}{{\\partial x}}$
+   - Intégrales: $\\oint_S \\vec{{E}} \\cdot d\\vec{{S}}$ pour le flux électrique
+4. Utilise la syntaxe LaTeX standard pour toutes les expressions mathématiques
+5. N'utilise pas \\[ et \\] ou \\( et \\)
+
+Voici le texte à résumer:
+
+{all_texts}"""
     
     try:
         # Re-charger les variables d'environnement pour s'assurer qu'elles sont disponibles
@@ -739,8 +756,11 @@ def generate_resume(request, note_id):
         if response.status_code == 200:
             result = response.json()
             resume_text = result["choices"][0]["message"]["content"]
-            # Convertir le résumé Markdown en HTML
+            
+            # Convertir le résumé Markdown en HTML tout en préservant les formules mathématiques
+            # On utilise une méthode qui préserve les formules $ et $$
             resume_text = markdown.markdown(resume_text)
+            
             # Déterminer la version du résumé
             latest_version = TextNoteResume.objects.filter(note=note, userEditeur=user).order_by('-version').first()
             version = 1 if not latest_version else latest_version.version + 1
@@ -841,52 +861,42 @@ def generate_quiz(request, note_id):
     if len(all_texts) > 6000:
         all_texts = all_texts[:6000] + "..."
     
-    # Préparer le prompt pour le quiz
-    prompt = f"""Génère un quiz interactif basé sur le texte suivant.
-Le quiz doit contenir 5 questions de types variés (QCM, vrai/faux, réponse courte).
-Pour chaque question, fournir:
-1. L'énoncé de la question
-2. Les options de réponse (pour les QCM)
-3. La réponse correcte
-4. Une explication brève
+    # Prompt qui demande un quiz basé sur le contenu des notes
+    prompt = f"""Génère un quiz basé sur le texte suivant. 
+Le quiz doit inclure AU MOINS 10 questions variées directement liées au contenu du texte.
 
-Formate le résultat en JSON avec cette structure:
-{{
-  "titre": "Titre du quiz basé sur le contenu",
-  "questions": [
-    {{
-      "question": "Question 1?",
-      "type": "qcm",
-      "options": ["Option A", "Option B", "Option C", "Option D"],
-      "reponse": "Option A",
-      "explication": "Explication de la réponse correcte"
-    }},
-    {{
-      "question": "Question 2?",
-      "type": "vrai_faux",
-      "options": ["Vrai", "Faux"],
-      "reponse": "Vrai",
-      "explication": "Explication de pourquoi c'est vrai"
-    }},
-    ...
-  ]
-}}
+Utilise les types de questions suivants (dans cet ordre exact):
+1. Questions à réponse texte libre (3 questions)
+2. Questions à choix multiples (4 questions)
+3. Questions oui/non (1 question)
+4. Questions vrai/faux (2 questions)
+
+Pour chaque question, utilise le format suivant (très important):
+
+Question: [texte de la question]
+Type: [texte, qcm, oui_non, vrai_faux]
+Options: [liste des options séparées par des sauts de ligne, seulement pour qcm]
+Réponse: [réponse correcte]
+Explication: [explication brève]
+
+Pour les formules mathématiques ou scientifiques, utilise la notation LaTeX entre $ $ (exemple: $E=mc^2$).
+N'UTILISE PAS de format JSON.
 
 Voici le texte:
 {all_texts}"""
     
     try:
-        # Re-charger les variables d'environnement pour s'assurer qu'elles sont disponibles
+        # Re-charger les variables d'environnement
         load_dotenv()
         
-        # Récupérer la clé API depuis les variables d'environnement
+        # Récupérer la clé API
         api_key = os.environ.get('OPENROUTER_API_KEY')
         
         if not api_key:
-            messages.error(request, "Clé API OpenRouter non configurée. Veuillez configurer la variable d'environnement OPENROUTER_API_KEY.")
+            messages.error(request, "Clé API OpenRouter non configurée.")
             return redirect('note_detail', note_id=note_id)
         
-        # Préparation de la requête à l'API OpenRouter
+        # Préparation de la requête
         headers = {
             "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json"
@@ -909,69 +919,34 @@ Voici le texte:
             json=data
         )
         
-        # Récupération de la réponse
         if response.status_code == 200:
             result = response.json()
-            quiz_content = result["choices"][0]["message"]["content"]
+            content = result["choices"][0]["message"]["content"]
             
-            try:
-                # Parsing du JSON pour extraire les questions
-                quiz_data = json.loads(quiz_content)
-                questions_data = quiz_data.get("questions", [])
-                
-                # Vérifier que questions_data n'est pas vide
-                if not questions_data:
-                    # Utilisé un dictionnaire par défaut avec un message d'erreur
-                    questions_data = [{
-                        "question": "Erreur de génération du quiz",
-                        "type": "qcm",
-                        "options": ["Option A", "Option B"],
-                        "reponse": "Option A",
-                        "explication": "Le modèle n'a pas généré de questions valides."
-                    }]
-                
-                # Déterminer la version du quiz
-                latest_version = QuizNote.objects.filter(note=note, userEditeur=user).order_by('-version').first()
-                version = 1 if not latest_version else latest_version.version + 1
-                
-                # Enregistrer le quiz avec les questions extraites
-                quiz = QuizNote(
-                    note=note,
-                    contenu=quiz_content,
-                    questions=questions_data,  # Toujours un tableau non vide maintenant
-                    userEditeur=user,
-                    version=version
-                )
-                quiz.save()
-                
-                messages.success(request, "Quiz généré avec succès !")
-                return redirect('view_quizzes', note_id=note_id)
-            except json.JSONDecodeError:
-                # En cas d'erreur JSON, créer un quiz avec une question par défaut
-                default_questions = [{
-                    "question": "Erreur de génération du quiz",
-                    "type": "qcm",
-                    "options": ["Option A", "Option B"],
-                    "reponse": "Option A",
-                    "explication": "Le modèle a généré une réponse qui n'est pas au format JSON valide."
-                }]
-                
-                # Déterminer la version du quiz
-                latest_version = QuizNote.objects.filter(note=note, userEditeur=user).order_by('-version').first()
-                version = 1 if not latest_version else latest_version.version + 1
-                
-                # Enregistrer le quiz avec les questions par défaut
-                quiz = QuizNote(
-                    note=note,
-                    contenu=quiz_content,
-                    questions=default_questions,  # Utiliser nos questions par défaut
-                    userEditeur=user,
-                    version=version
-                )
-                quiz.save()
-                
-                messages.warning(request, "Quiz généré mais avec un format incorrect. Une version simplifiée a été créée.")
-                return redirect('view_quizzes', note_id=note_id)
+            # Analyser le contenu pour extraire les questions
+            questions = parse_quiz_response(content, note.titre)
+            
+            if not questions:
+                messages.error(request, "Erreur de format dans la génération du quiz. Veuillez réessayer.")
+                return redirect('note_detail', note_id=note_id)
+            
+            # Déterminer la version
+            latest_version = QuizNote.objects.filter(note=note, userEditeur=user).order_by('-version').first()
+            version = 1 if not latest_version else latest_version.version + 1
+            
+            # Créer le quiz
+            quiz = QuizNote(
+                note=note,
+                contenu=content,  # Stocker la réponse brute
+                questions=json.dumps(questions),  # Stocker les questions parsées
+                userEditeur=user,
+                version=version
+            )
+            quiz.save()
+            
+            messages.success(request, f"Quiz généré avec succès avec {len(questions)} questions!")
+            return redirect('view_quizzes', note_id=note_id)
+            
         else:
             messages.error(request, f"Erreur lors de la génération du quiz: {response.text}")
             return redirect('note_detail', note_id=note_id)
@@ -979,6 +954,73 @@ Voici le texte:
     except Exception as e:
         messages.error(request, f"Erreur: {str(e)}")
         return redirect('note_detail', note_id=note_id)
+
+def parse_quiz_response(response_text, note_title):
+    """
+    Parse la réponse de l'API pour extraire les questions.
+    Retourne None si la réponse ne peut pas être parsée correctement.
+    """
+    try:
+        # Analyse du texte pour extraire les questions manuellement
+        questions = []
+        # Pattern pour capturer les questions avec différents types
+        pattern = r'(?:Question\s*(?:\d+)?[:.]\s*)(.*?)(?:\n\s*Type[:.]\s*(.*?)(?:\n\s*Options[:.]\s*(.*?))?(?:\n\s*Réponse[:.]\s*(.*?))\n\s*Explication[:.]\s*(.*?)(?=\n\s*(?:Question|$)))'
+        
+        question_matches = re.finditer(pattern, response_text, re.DOTALL | re.MULTILINE)
+        
+        for match in question_matches:
+            question_text = match.group(1).strip()
+            question_type = match.group(2).strip().lower() if match.group(2) else "qcm"
+            options_text = match.group(3).strip() if match.group(3) else ""
+            answer = match.group(4).strip() if match.group(4) else ""
+            explanation = match.group(5).strip() if match.group(5) else ""
+            
+            # Normaliser le type de question
+            if "vrai" in question_type or "faux" in question_type:
+                question_type = "vrai_faux"
+                options = ["Vrai", "Faux"]
+            elif "oui" in question_type or "non" in question_type:
+                question_type = "oui_non"
+                options = ["Oui", "Non"]
+            elif "texte" in question_type or "libre" in question_type:
+                question_type = "texte"
+                options = []
+            else:
+                question_type = "qcm"
+                
+                # Extraire les options pour QCM
+                if options_text:
+                    # Essayer de trouver des options avec des lettres (A., B., etc.)
+                    option_matches = re.findall(r'(?:[A-D][.:]|[\-\*])\s*(.*?)(?=\s*(?:[A-D][.:]|[\-\*]|$))', options_text + " ")
+                    if option_matches:
+                        options = [opt.strip() for opt in option_matches]
+                    else:
+                        # Sinon, séparer par les sauts de ligne
+                        options = [opt.strip() for opt in options_text.split('\n') if opt.strip()]
+                else:
+                    options = ["Option A", "Option B", "Option C", "Option D"]
+                
+                # S'assurer qu'il y a au moins 2 options
+                while len(options) < 2:
+                    options.append(f"Option {len(options) + 1}")
+            
+            # Ajouter la question seulement si nous avons un texte de question et une réponse
+            if question_text and answer:
+                questions.append({
+                    "question": question_text,
+                    "type": question_type,
+                    "options": options,
+                    "reponse": answer,
+                    "explication": explanation
+                })
+        
+        # Vérifier qu'on a extrait au moins une question valide
+        if questions:
+            return questions
+        return None
+    except Exception as e:
+        print(f"Erreur lors du parsing: {str(e)}")
+        return None
 
 def view_quizzes(request, note_id):
     user = get_current_user(request)

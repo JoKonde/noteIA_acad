@@ -267,6 +267,30 @@
   }
 </style>
 
+<!-- MathJax pour les formules mathématiques, physiques et électriques -->
+<script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+<script>
+  window.MathJax = {
+    tex: {
+      inlineMath: [['\\(', '\\)'], ['$', '$']],
+      displayMath: [['\\[', '\\]'], ['$$', '$$']],
+      processEscapes: true
+    },
+    options: {
+      enableMenu: false
+    }
+  };
+  
+  // Fonction pour appliquer MathJax aux notes texte
+  document.addEventListener('DOMContentLoaded', function() {
+    // S'assurer que MathJax est bien chargé et appliqué à toutes les formules
+    if (typeof MathJax !== 'undefined') {
+      MathJax.typeset();
+    }
+  });
+</script>
+
 <div class="header-section">
   <div>
     <div class="note-title-area">
@@ -342,7 +366,7 @@
 <h3 class="section-title"><i class="bi bi-card-text me-2"></i>Textes</h3>
 {% for tn in textnotes %}
   <div class="textnote-card">
-    <p>{{ tn.texte }}</p>
+    <p>{{ tn.texte|safe }}</p>
     <div class="media-info">
       <span><i class="bi bi-person-circle me-1"></i> Édité par {{ tn.userEditeur.username }}</span> 
       <span class="ms-2"><i class="bi bi-clock me-1"></i> {{ tn.date|date:"d/m/Y H:i" }}</span>

@@ -170,7 +170,7 @@ class QuizNote(models.Model):
     uuid = models.UUIDField(default=uuid.uuid4, editable=False)
     note = models.ForeignKey(Note, on_delete=models.CASCADE)
     contenu = models.TextField()  # JSON stocké sous forme de texte
-    questions = models.JSONField(default=dict)  # Ajout du champ questions
+    questions = models.TextField(default='[]')  # Questions stockées sous forme de chaîne JSON
     date = models.DateTimeField(default=timezone.now)
     userEditeur = models.ForeignKey('CustomUser', on_delete=models.CASCADE)
     version = models.IntegerField(default=1)

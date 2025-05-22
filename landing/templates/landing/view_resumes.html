@@ -69,6 +69,22 @@
   }
 </style>
 
+<!-- Ajout de MathJax pour le rendu des formules mathématiques -->
+<script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+<script>
+  window.MathJax = {
+    tex: {
+      inlineMath: [['\\(', '\\)'], ['$', '$']],
+      displayMath: [['\\[', '\\]'], ['$$', '$$']],
+      processEscapes: true
+    },
+    options: {
+      enableMenu: false
+    }
+  };
+</script>
+
 <div class="header-actions">
   <a href="{% url 'note_detail' note.id %}" class="btn-back">
     <i class="bi bi-arrow-left"></i> Retour à la note
