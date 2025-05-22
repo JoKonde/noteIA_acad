@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ajouter une vidéo - NoteIA</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        .video-tab-content {
+            padding: 20px;
+            border: 1px solid #dee2e6;
+            border-top: 0;
+            border-radius: 0 0 0.25rem 0.25rem;
+        }
+        
+        .video-preview {
+            max-width: 100%;
+            max-height: 400px;
+            margin: 15px 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 5px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .capture-area {
+            position: relative;
+            margin: 15px 0;
+            text-align: center;
+        }
+        
+        #video-preview, #video-stream {
+            width: 100%;
+            max-width: 640px;
+            max-height: 480px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            background-color: #f8f9fa;
+        }
+        
+        .video-controls {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+            justify-content: center;
+        }
+        
+        .record-button {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background-color: #dc3545;
+            color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            transition: all 0.3s ease;
+        }
+        
+        .record-button.recording {
+            animation: pulse 1.5s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+        
+        .timer {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #dc3545;
+            margin: 0 15px;
+            min-width: 70px;
+            text-align: center;
+        }
+        
+        .recording-indicator {
+            display: none;
+            align-items: center;
+            gap: 10px;
+            color: #dc3545;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+        
+        .recording-indicator .dot {
+            width: 12px;
+            height: 12px;
+            background-color: #dc3545;
+            border-radius: 50%;
+            animation: blink 1s infinite;
+        }
+        
+        @keyframes blink {
+            0% { opacity: 0; }
+            50% { opacity: 1; }
+            100% { opacity: 0; }
+        }
+        
+        .thumbnail-preview {
+            max-width: 150px;
+            max-height: 100px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-4">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1>Ajouter une vidéo à la note: {{ note.titre }}</h1>
+            <a href="{% url 'note_detail' note_id=note.id %}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i> Retour à la note
+            </a>
+        </div>
+
+        {% if messages %}
+            <div class="messages mb-4">
+                {% for message in messages %}
+                    <div class="alert alert-{{ message.tags }}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        <div class="card mb-4">
+            <div class="card-header bg-info text-white">
+                <i class="fas fa-info-circle me-2"></i> Comment ça marche
+            </div>
+            <div class="card-body">
+                <p>Vous pouvez ajouter une vidéo à votre note de deux façons :</p>
+                <ol>
+                    <li><strong>Importer un fichier vidéo</strong> - Téléchargez un fichier vidéo depuis votre appareil</li>
+                    <li><strong>Enregistrer directement</strong> - Utilisez votre webcam pour enregistrer une nouvelle vidéo</li>
+                </ol>
+                <p class="mb-0 text-muted"><small>Formats supportés : MP4, WEBM, MOV, AVI (taille maximale recommandée : 100 Mo)</small></p>
+            </div>
+        </div>
+
+        <!-- Onglets pour choisir la méthode d'ajout -->
+        <ul class="nav nav-tabs" id="videoTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="import-tab" data-bs-toggle="tab" data-bs-target="#import-content" type="button" role="tab" aria-controls="import-content" aria-selected="true">
+                    <i class="fas fa-file-upload"></i> Importer une vidéo
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="record-tab" data-bs-toggle="tab" data-bs-target="#record-content" type="button" role="tab" aria-controls="record-content" aria-selected="false">
+                    <i class="fas fa-video"></i> Enregistrer une vidéo
+                </button>
+            </li>
+        </ul>
+
+        <div class="tab-content" id="videoTabContent">
+            <!-- Option 1: Importer un fichier vidéo -->
+            <div class="tab-pane fade show active video-tab-content" id="import-content" role="tabpanel" aria-labelledby="import-tab">
+                <form method="post" enctype="multipart/form-data" id="upload-form">
+                    {% csrf_token %}
+                    <input type="hidden" name="method" value="upload">
+                    
+                    <div class="mb-3">
+                        <label for="titre" class="form-label">Titre de la vidéo</label>
+                        <input type="text" class="form-control" id="titre" name="titre" required placeholder="Donnez un titre à cette vidéo">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="video" class="form-label">Fichier vidéo (MP4, WEBM, MOV, AVI)</label>
+                        <input type="file" class="form-control" id="video" name="video" accept="video/*" required>
+                        <div class="form-text">Taille maximale recommandée: 100 MB</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Aperçu</label>
+                        <div class="text-center">
+                            <video id="video-preview" controls class="video-preview" style="display: none;"></video>
+                            <div id="no-preview-message" class="text-muted">Sélectionnez un fichier pour l'aperçu</div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="thumbnail" class="form-label">Miniature (optionnel)</label>
+                        <input type="file" class="form-control" id="thumbnail" name="thumbnail" accept="image/*">
+                        <div class="form-text">Une image représentative de la vidéo (sera générée automatiquement si non fournie)</div>
+                        <div class="text-center mt-2">
+                            <img id="thumbnail-preview" class="thumbnail-preview" style="display: none;" alt="Aperçu de la miniature">
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="duree" class="form-label">Durée (secondes)</label>
+                        <input type="number" class="form-control" id="duree" name="duree" value="0" readonly>
+                        <div class="form-text">La durée sera calculée automatiquement à partir du fichier.</div>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> Enregistrer
+                    </button>
+                </form>
+            </div>
+            
+            <!-- Option 2: Enregistrer directement -->
+            <div class="tab-pane fade video-tab-content" id="record-content" role="tabpanel" aria-labelledby="record-tab">
+                <form method="post" enctype="multipart/form-data" id="record-form">
+                    {% csrf_token %}
+                    <input type="hidden" name="method" value="record">
+                    <input type="hidden" name="recorded_video_data" id="recorded-video-data">
+                    <input type="hidden" name="recorded_thumbnail" id="recorded-thumbnail">
+                    
+                    <div class="mb-3">
+                        <label for="titre-record" class="form-label">Titre de la vidéo</label>
+                        <input type="text" class="form-control" id="titre-record" name="titre" required placeholder="Donnez un titre à cette vidéo">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Caméra</label>
+                        <div class="capture-area">
+                            <video id="video-stream" autoplay muted playsinline></video>
+                            <div class="recording-indicator" id="recording-indicator">
+                                <span class="dot"></span> Enregistrement en cours
+                            </div>
+                        </div>
+                        
+                        <div class="video-controls">
+                            <div class="record-button" id="record-button" title="Démarrer l'enregistrement">
+                                <i class="fas fa-video fa-lg"></i>
+                            </div>
+                            <div class="timer" id="timer">00:00</div>
+                            <button type="button" class="btn btn-outline-secondary" id="stop-button" disabled title="Arrêter l'enregistrement">
+                                <i class="fas fa-stop me-1"></i> Arrêter
+                            </button>
+                            <button type="button" class="btn btn-outline-primary" id="play-button" disabled title="Lire l'enregistrement">
+                                <i class="fas fa-play me-1"></i> Lire
+                            </button>
+                            <button type="button" class="btn btn-outline-danger" id="switch-camera-btn" title="Changer de caméra">
+                                <i class="fas fa-sync-alt me-1"></i> Changer de caméra
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3 text-center" id="recorded-preview-container" style="display: none;">
+                        <h5>Aperçu de l'enregistrement</h5>
+                        <video id="recorded-preview" controls class="video-preview"></video>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="duree-record" class="form-label">Durée (secondes)</label>
+                        <input type="number" class="form-control" id="duree-record" name="duree" value="0" readonly>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary" id="save-record-button" disabled>
+                        <i class="fas fa-save me-1"></i> Enregistrer
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS Bundle with Popper -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Variables pour l'importation de vidéo
+            const videoInput = document.getElementById('video');
+            const videoPreview = document.getElementById('video-preview');
+            const noPreviewMessage = document.getElementById('no-preview-message');
+            const durationInput = document.getElementById('duree');
+            const thumbnailInput = document.getElementById('thumbnail');
+            const thumbnailPreview = document.getElementById('thumbnail-preview');
+            
+            // Variables pour l'enregistrement
+            const videoStream = document.getElementById('video-stream');
+            const recordButton = document.getElementById('record-button');
+            const stopButton = document.getElementById('stop-button');
+            const playButton = document.getElementById('play-button');
+            const switchCameraBtn = document.getElementById('switch-camera-btn');
+            const recordedPreview = document.getElementById('recorded-preview');
+            const recordedPreviewContainer = document.getElementById('recorded-preview-container');
+            const durationRecordInput = document.getElementById('duree-record');
+            const timer = document.getElementById('timer');
+            const recordingIndicator = document.getElementById('recording-indicator');
+            const saveRecordButton = document.getElementById('save-record-button');
+            const recordedVideoData = document.getElementById('recorded-video-data');
+            const recordedThumbnail = document.getElementById('recorded-thumbnail');
+            
+            // Variables pour l'enregistrement
+            let mediaRecorder;
+            let recordedChunks = [];
+            let startTime;
+            let timerInterval;
+            let currentStream = null;
+            let facingMode = 'user'; // 'user' pour caméra frontale, 'environment' pour arrière
+            const MAX_RECORDING_TIME = 10; // Limite d'enregistrement en secondes (réduit à 10 secondes)
+            const MAX_BLOB_SIZE = 10 * 1024 * 1024; // Limite de taille approximative (10MB)
+            
+            // Aperçu du fichier importé
+            videoInput.addEventListener('change', function(e) {
+                const file = e.target.files[0];
+                if (file) {
+                    const url = URL.createObjectURL(file);
+                    videoPreview.src = url;
+                    videoPreview.style.display = 'block';
+                    noPreviewMessage.style.display = 'none';
+                    
+                    // Calculer la durée
+                    videoPreview.onloadedmetadata = function() {
+                        durationInput.value = Math.round(videoPreview.duration);
+                        
+                        // Capturer une image comme thumbnail si aucune n'est fournie
+                        if (!thumbnailInput.files.length) {
+                            setTimeout(() => {
+                                captureVideoThumbnail(videoPreview);
+                            }, 1000); // Attendre que la vidéo charge un peu
+                        }
+                    };
+                }
+            });
+            
+            // Aperçu de la miniature importée
+            thumbnailInput.addEventListener('change', function(e) {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        thumbnailPreview.src = e.target.result;
+                        thumbnailPreview.style.display = 'block';
+                    };
+                    reader.readAsDataURL(file);
+                }
+            });
+            
+            // Capturer une image de la vidéo pour la miniature
+            function captureVideoThumbnail(videoElement) {
+                const canvas = document.createElement('canvas');
+                canvas.width = videoElement.videoWidth;
+                canvas.height = videoElement.videoHeight;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
+                
+                try {
+                    const dataUrl = canvas.toDataURL('image/jpeg');
+                    thumbnailPreview.src = dataUrl;
+                    thumbnailPreview.style.display = 'block';
+                    
+                    // Créer un "fichier" pour l'API File et l'associer à l'input
+                    fetch(dataUrl)
+                        .then(res => res.blob())
+                        .then(blob => {
+                            const file = new File([blob], "thumbnail.jpg", { type: "image/jpeg" });
+                            
+                            // Créer une nouvelle liste de fichiers pour l'input
+                            const dataTransfer = new DataTransfer();
+                            dataTransfer.items.add(file);
+                            thumbnailInput.files = dataTransfer.files;
+                        });
+                } catch (e) {
+                    console.error("Erreur lors de la capture de miniature", e);
+                }
+            }
+            
+            // Initialiser la caméra quand on clique sur l'onglet d'enregistrement
+            document.getElementById('record-tab').addEventListener('click', startCamera);
+            
+            function startCamera() {
+                // Arrêter tout flux existant
+                if (currentStream) {
+                    currentStream.getTracks().forEach(track => track.stop());
+                }
+                
+                // Configurer les contraintes pour la caméra
+                const constraints = {
+                    audio: true,
+                    video: { 
+                        facingMode: facingMode,
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
+                    }
+                };
+                
+                // Accéder à la caméra
+                navigator.mediaDevices.getUserMedia(constraints)
+                    .then(function(stream) {
+                        currentStream = stream;
+                        videoStream.srcObject = stream;
+                        
+                        // Réinitialiser l'interface
+                        recordButton.disabled = false;
+                        stopButton.disabled = true;
+                        playButton.disabled = true;
+                        saveRecordButton.disabled = true;
+                        recordedPreviewContainer.style.display = 'none';
+                        timer.textContent = '00:00';
+                        recordingIndicator.style.display = 'none';
+                        recordedChunks = [];
+                    })
+                    .catch(function(err) {
+                        console.error('Erreur d\'accès à la caméra:', err);
+                        alert('Impossible d\'accéder à la caméra. Veuillez vérifier les permissions.');
+                    });
+            }
+            
+            // Changer de caméra (avant/arrière)
+            switchCameraBtn.addEventListener('click', function() {
+                facingMode = facingMode === 'user' ? 'environment' : 'user';
+                startCamera();
+            });
+            
+            // Mettre à jour le timer
+            function updateTimer() {
+                const now = new Date();
+                const diff = Math.floor((now - startTime) / 1000);
+                const minutes = Math.floor(diff / 60).toString().padStart(2, '0');
+                const seconds = (diff % 60).toString().padStart(2, '0');
+                timer.textContent = `${minutes}:${seconds}`;
+                durationRecordInput.value = diff;
+                
+                // Arrêter automatiquement si on dépasse la limite de temps
+                if (diff >= MAX_RECORDING_TIME) {
+                    if (mediaRecorder && mediaRecorder.state === 'recording') {
+                        mediaRecorder.stop();
+                        clearInterval(timerInterval);
+                        alert(`L'enregistrement a été automatiquement arrêté après ${MAX_RECORDING_TIME} secondes pour éviter de dépasser les limites du serveur.`);
+                    }
+                }
+            }
+            
+            // Démarrer l'enregistrement
+            recordButton.addEventListener('click', function() {
+                if (!currentStream) return;
+                
+                try {
+                    // Configurer l'enregistreur média avec une qualité réduite pour limiter la taille du fichier
+                    const options = {
+                        mimeType: 'video/webm;codecs=vp8,opus',
+                        videoBitsPerSecond: 250000, // Bitrate réduit (250Kbps)
+                        audioBitsPerSecond: 32000   // Bitrate audio réduit (32Kbps)
+                    };
+                    
+                    try {
+                        mediaRecorder = new MediaRecorder(currentStream, options);
+                    } catch (e) {
+                        // Si le codec spécifique n'est pas supporté, utiliser les paramètres par défaut
+                        console.warn("Codec spécifique non supporté, utilisation des paramètres par défaut", e);
+                        mediaRecorder = new MediaRecorder(currentStream);
+                    }
+                    
+                    recordedChunks = [];
+                    
+                    // Collecter les données enregistrées
+                    mediaRecorder.ondataavailable = function(e) {
+                        if (e.data.size > 0) {
+                            recordedChunks.push(e.data);
+                        }
+                    };
+                    
+                    // Quand l'enregistrement s'arrête
+                    mediaRecorder.onstop = function() {
+                        // Créer un blob à partir des chunks
+                        const blob = new Blob(recordedChunks, { type: 'video/webm' });
+                        
+                        // Vérifier la taille du blob
+                        if (blob.size > MAX_BLOB_SIZE) {
+                            alert("La vidéo enregistrée est trop volumineuse pour être envoyée au serveur. Veuillez réduire la durée ou la qualité d'enregistrement, ou utiliser l'option d'importation de fichier.");
+                            
+                            // Réinitialiser l'interface
+                            recordButton.disabled = false;
+                            stopButton.disabled = true;
+                            playButton.disabled = true;
+                            saveRecordButton.disabled = true;
+                            recordedPreviewContainer.style.display = 'none';
+                            recordedChunks = [];
+                            return;
+                        }
+                        
+                        const url = URL.createObjectURL(blob);
+                        
+                        // Afficher l'aperçu
+                        recordedPreview.src = url;
+                        recordedPreviewContainer.style.display = 'block';
+                        
+                        // Convertir en base64 pour l'envoi
+                        const reader = new FileReader();
+                        reader.readAsDataURL(blob);
+                        reader.onloadend = function() {
+                            recordedVideoData.value = reader.result;
+                            
+                            // Créer une miniature
+                            setTimeout(() => {
+                                captureVideoThumbnail(recordedPreview);
+                            }, 500);
+                        };
+                        
+                        // Mise à jour de l'interface
+                        recordButton.classList.remove('recording');
+                        recordingIndicator.style.display = 'none';
+                        saveRecordButton.disabled = false;
+                    };
+                    
+                    // Démarrer l'enregistrement
+                    mediaRecorder.start(100); // Collecter les données toutes les 100ms
+                    startTime = new Date();
+                    timerInterval = setInterval(updateTimer, 1000);
+                    
+                    // Mise à jour de l'interface
+                    recordButton.classList.add('recording');
+                    recordButton.disabled = true;
+                    stopButton.disabled = false;
+                    playButton.disabled = true;
+                    recordingIndicator.style.display = 'flex';
+                    
+                    // Ajouter un message d'avertissement sur la durée maximale
+                    alert(`Pour éviter les erreurs, l'enregistrement est limité à ${MAX_RECORDING_TIME} secondes maximum.\n\nLa vidéo est enregistrée en qualité réduite pour faciliter le traitement par le serveur.\n\nPour des vidéos plus longues ou de meilleure qualité, utilisez l'option d'importation.`);
+                } catch (err) {
+                    console.error('Erreur lors du démarrage de l\'enregistrement:', err);
+                    alert('Impossible de démarrer l\'enregistrement. Votre navigateur supporte-t-il cette fonctionnalité?');
+                }
+            });
+            
+            // Arrêter l'enregistrement
+            stopButton.addEventListener('click', function() {
+                if (mediaRecorder && mediaRecorder.state === 'recording') {
+                    mediaRecorder.stop();
+                    clearInterval(timerInterval);
+                    
+                    // Mise à jour de l'interface
+                    recordButton.disabled = false;
+                    stopButton.disabled = true;
+                    playButton.disabled = false;
+                }
+            });
+            
+            // Lire l'enregistrement
+            playButton.addEventListener('click', function() {
+                if (recordedPreview.src) {
+                    if (recordedPreview.paused) {
+                        recordedPreview.play();
+                        playButton.innerHTML = '<i class="fas fa-pause me-1"></i> Pause';
+                    } else {
+                        recordedPreview.pause();
+                        playButton.innerHTML = '<i class="fas fa-play me-1"></i> Lire';
+                    }
+                }
+            });
+            
+            // Quand la lecture se termine
+            recordedPreview.addEventListener('ended', function() {
+                playButton.innerHTML = '<i class="fas fa-play me-1"></i> Lire';
+            });
+            
+            // Capturer une miniature à partir de la vidéo enregistrée
+            function captureRecordedThumbnail() {
+                const canvas = document.createElement('canvas');
+                canvas.width = recordedPreview.videoWidth;
+                canvas.height = recordedPreview.videoHeight;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(recordedPreview, 0, 0, canvas.width, canvas.height);
+                
+                try {
+                    const dataUrl = canvas.toDataURL('image/jpeg');
+                    recordedThumbnail.value = dataUrl;
+                } catch (e) {
+                    console.error("Erreur lors de la capture de miniature", e);
+                }
+            }
+            
+            // Quand on soumet le formulaire d'enregistrement
+            document.getElementById('record-form').addEventListener('submit', function(e) {
+                if (!recordedVideoData.value) {
+                    e.preventDefault();
+                    alert('Veuillez d\'abord enregistrer une vidéo.');
+                    return;
+                }
+                
+                // Capturer une miniature si ce n'est pas déjà fait
+                if (!recordedThumbnail.value) {
+                    captureRecordedThumbnail();
+                }
+                
+                // Vérifier la taille des données avant envoi
+                if (recordedVideoData.value.length > 15000000) { // ~15MB en base64
+                    e.preventDefault();
+                    alert('La vidéo est trop volumineuse pour être envoyée. Veuillez réduire la durée ou la résolution de l\'enregistrement, ou utiliser l\'option d\'importation de fichier.');
+                    return;
+                }
+            });
+            
+            // Nettoyer les ressources quand on quitte la page
+            window.addEventListener('beforeunload', function() {
+                if (currentStream) {
+                    currentStream.getTracks().forEach(track => track.stop());
+                }
+                
+                if (videoPreview.src) {
+                    URL.revokeObjectURL(videoPreview.src);
+                }
+                
+                if (recordedPreview.src) {
+                    URL.revokeObjectURL(recordedPreview.src);
+                }
+            });
+        });
+    </script>
+</body>
+</html> 

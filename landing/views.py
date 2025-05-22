@@ -1581,68 +1581,153 @@ def create_videonote(request, note_id):
         messages.error(request, "Vous n'avez pas le droit d'ajouter une vidéo à cette note.")
         return redirect('dashboard')
 
-    if request.method == "POST":
-        uploaded_video = request.FILES.get('video')
-        uploaded_thumbnail = request.FILES.get('thumbnail')
-        titre = request.POST.get('titre', 'Vidéo sans titre')
-        duree = request.POST.get('duree', 0)  # En secondes
-        
-        if not uploaded_video:
-            messages.error(request, "Veuillez sélectionner un fichier vidéo.")
-            return render(request, 'landing/create_videonote.html', {
-                'note': note,
-                'user_contact': user.contact
-            })
-
-        # Extension et nom de fichier unique pour la vidéo
-        video_ext = os.path.splitext(uploaded_video.name)[1]
-        video_filename = f"{note.id}_video_{int(timezone.now().timestamp())}{video_ext}"
-
-        # Répertoire de destination pour la vidéo
-        video_dir = os.path.join(
-            settings.BASE_DIR,
-            'landing', 'templates', 'landing', 'assets', 'video'
-        )
-        os.makedirs(video_dir, exist_ok=True)
-
-        video_save_path = os.path.join(video_dir, video_filename)
-        video_rel_path = f"video/{video_filename}"
-
-        # Sauvegarder la vidéo
-        with open(video_save_path, 'wb') as f:
-            for chunk in uploaded_video.chunks():
-                f.write(chunk)
-
-        # Traitement de la miniature si fournie
-        thumbnail_rel_path = None
-        if uploaded_thumbnail:
-            thumb_ext = os.path.splitext(uploaded_thumbnail.name)[1]
-            thumb_filename = f"{note.id}_thumb_{int(timezone.now().timestamp())}{thumb_ext}"
+    # Gestion de l'erreur RequestDataTooBig
+    try:
+        if request.method == "POST":
+            titre = request.POST.get('titre', 'Vidéo sans titre')
+            duree = request.POST.get('duree', 0)  # En secondes
+            method = request.POST.get('method', 'upload')  # Méthode d'ajout : upload ou record
             
+            # Répertoire de destination pour la vidéo
+            video_dir = os.path.join(
+                settings.BASE_DIR,
+                'landing', 'templates', 'landing', 'assets', 'video'
+            )
+            os.makedirs(video_dir, exist_ok=True)
+            
+            # Répertoire pour les miniatures
             thumb_dir = os.path.join(
                 settings.BASE_DIR,
                 'landing', 'templates', 'landing', 'assets', 'img', 'thumbnails'
             )
             os.makedirs(thumb_dir, exist_ok=True)
             
-            thumb_save_path = os.path.join(thumb_dir, thumb_filename)
-            thumbnail_rel_path = f"img/thumbnails/{thumb_filename}"
+            # Timestamp unique pour les noms de fichiers
+            timestamp = int(timezone.now().timestamp())
             
-            with open(thumb_save_path, 'wb') as f:
-                for chunk in uploaded_thumbnail.chunks():
-                    f.write(chunk)
+            if method == 'upload':
+                # Méthode 1: Import d'un fichier vidéo
+                uploaded_video = request.FILES.get('video')
+                uploaded_thumbnail = request.FILES.get('thumbnail')
+                
+                if not uploaded_video:
+                    messages.error(request, "Veuillez sélectionner un fichier vidéo.")
+                    return render(request, 'landing/create_videonote.html', {
+                        'note': note,
+                        'user_contact': user.contact
+                    })
 
-        # Enregistrer en base
-        VideoNote.objects.create(
-            note=note,
-            path=video_rel_path,
-            titre=titre,
-            duree=duree,
-            thumbnail=thumbnail_rel_path,
-            userEditeur=user
-        )
-        messages.success(request, "Vidéo ajoutée avec succès !")
-        return redirect('note_detail', note_id=note.id)
+                # Extension et nom de fichier unique pour la vidéo
+                video_ext = os.path.splitext(uploaded_video.name)[1]
+                video_filename = f"{note.id}_video_{timestamp}{video_ext}"
+                video_save_path = os.path.join(video_dir, video_filename)
+                video_rel_path = f"video/{video_filename}"
+
+                # Sauvegarder la vidéo
+                with open(video_save_path, 'wb') as f:
+                    for chunk in uploaded_video.chunks():
+                        f.write(chunk)
+
+                # Traitement de la miniature si fournie
+                thumbnail_rel_path = None
+                if uploaded_thumbnail:
+                    thumb_ext = os.path.splitext(uploaded_thumbnail.name)[1]
+                    thumb_filename = f"{note.id}_thumb_{timestamp}{thumb_ext}"
+                    thumb_save_path = os.path.join(thumb_dir, thumb_filename)
+                    thumbnail_rel_path = f"img/thumbnails/{thumb_filename}"
+                    
+                    with open(thumb_save_path, 'wb') as f:
+                        for chunk in uploaded_thumbnail.chunks():
+                            f.write(chunk)
+                            
+            elif method == 'record':
+                # Méthode 2: Enregistrement direct avec webcam
+                recorded_video_data = request.POST.get('recorded_video_data')
+                recorded_thumbnail = request.POST.get('recorded_thumbnail')
+                
+                if not recorded_video_data:
+                    messages.error(request, "Aucun enregistrement vidéo trouvé.")
+                    return render(request, 'landing/create_videonote.html', {
+                        'note': note,
+                        'user_contact': user.contact
+                    })
+                
+                # Extraire les données base64 de la vidéo
+                if ',' in recorded_video_data:
+                    format_info, base64_str = recorded_video_data.split(',', 1)
+                else:
+                    base64_str = recorded_video_data
+                
+                # Déterminer l'extension du fichier à partir du format_info
+                video_ext = '.webm'  # par défaut pour l'enregistrement WebRTC
+                if format_info and 'data:video/' in format_info:
+                    mime_type = format_info.split('data:')[1].split(';')[0]
+                    if mime_type == 'video/webm':
+                        video_ext = '.webm'
+                    elif mime_type == 'video/mp4':
+                        video_ext = '.mp4'
+                    elif mime_type == 'video/ogg':
+                        video_ext = '.ogg'
+                    
+                # Convertir base64 en données binaires
+                video_data = base64.b64decode(base64_str)
+                
+                # Sauvegarder le fichier vidéo
+                video_filename = f"{note.id}_video_record_{timestamp}{video_ext}"
+                video_save_path = os.path.join(video_dir, video_filename)
+                video_rel_path = f"video/{video_filename}"
+                
+                with open(video_save_path, 'wb') as f:
+                    f.write(video_data)
+                
+                # Traiter la miniature si fournie
+                thumbnail_rel_path = None
+                if recorded_thumbnail:
+                    # Extraire les données base64 de la miniature
+                    if ',' in recorded_thumbnail:
+                        format_info, thumb_base64 = recorded_thumbnail.split(',', 1)
+                    else:
+                        thumb_base64 = recorded_thumbnail
+                    
+                    # Convertir en données binaires
+                    thumb_data = base64.b64decode(thumb_base64)
+                    
+                    # Sauvegarder la miniature
+                    thumb_filename = f"{note.id}_thumb_record_{timestamp}.jpg"
+                    thumb_save_path = os.path.join(thumb_dir, thumb_filename)
+                    thumbnail_rel_path = f"img/thumbnails/{thumb_filename}"
+                    
+                    with open(thumb_save_path, 'wb') as f:
+                        f.write(thumb_data)
+            else:
+                messages.error(request, "Méthode d'ajout vidéo non reconnue.")
+                return render(request, 'landing/create_videonote.html', {
+                    'note': note,
+                    'user_contact': user.contact
+                })
+
+            # Enregistrer en base de données (commun aux deux méthodes)
+            VideoNote.objects.create(
+                note=note,
+                path=video_rel_path,
+                titre=titre,
+                duree=duree,
+                thumbnail=thumbnail_rel_path,
+                userEditeur=user
+            )
+            messages.success(request, "Vidéo ajoutée avec succès !")
+            return redirect('note_detail', note_id=note.id)
+            
+    except Exception as e:
+        if 'RequestDataTooBig' in str(e):
+            messages.error(request, "La vidéo est trop volumineuse pour être traitée. Veuillez limiter l'enregistrement à 10 secondes maximum ou utiliser l'option d'importation pour les vidéos plus longues.")
+        else:
+            messages.error(request, f"Une erreur est survenue lors du traitement de la vidéo: {str(e)}")
+        
+        return render(request, 'landing/create_videonote.html', {
+            'note': note,
+            'user_contact': user.contact
+        })
 
     return render(request, 'landing/create_videonote.html', {
         'note': note,
