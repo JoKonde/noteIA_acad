@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ajouter un audio - NoteIA</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        .recording-controls {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .record-button {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background-color: #dc3545;
+            color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+        .record-button.recording {
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+        .timer {
+            font-size: 1.2rem;
+            font-weight: bold;
+            min-width: 80px;
+        }
+        .audio-tab-content {
+            padding: 20px;
+            border: 1px solid #dee2e6;
+            border-top: 0;
+            border-radius: 0 0 0.25rem 0.25rem;
+        }
+        .audio-visual {
+            width: 100%;
+            height: 60px;
+            background-color: #f8f9fa;
+            margin-bottom: 15px;
+            border-radius: 4px;
+            overflow: hidden;
+            position: relative;
+        }
+        .visualizer-canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-4">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1>Ajouter un fichier audio à la note: {{ note.titre }}</h1>
+            <a href="{% url 'note_detail' note_id=note.id %}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i> Retour à la note
+            </a>
+        </div>
+
+        {% if messages %}
+            <div class="messages mb-4">
+                {% for message in messages %}
+                    <div class="alert alert-{{ message.tags }}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        <!-- Onglets pour choisir la méthode d'ajout -->
+        <ul class="nav nav-tabs" id="audioTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="import-tab" data-bs-toggle="tab" data-bs-target="#import-content" type="button" role="tab" aria-controls="import-content" aria-selected="true">
+                    <i class="fas fa-file-upload"></i> Importer un fichier
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="record-tab" data-bs-toggle="tab" data-bs-target="#record-content" type="button" role="tab" aria-controls="record-content" aria-selected="false">
+                    <i class="fas fa-microphone"></i> Enregistrer
+                </button>
+            </li>
+        </ul>
+
+        <div class="tab-content" id="audioTabContent">
+            <!-- Option 1: Importer un fichier audio -->
+            <div class="tab-pane fade show active audio-tab-content" id="import-content" role="tabpanel" aria-labelledby="import-tab">
+                <form method="post" enctype="multipart/form-data" id="upload-form">
+                    {% csrf_token %}
+                    <input type="hidden" name="method" value="upload">
+                    
+                    <div class="mb-3">
+                        <label for="titre" class="form-label">Titre de l'audio</label>
+                        <input type="text" class="form-control" id="titre" name="titre" required placeholder="Donnez un titre à cet audio">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="audio" class="form-label">Fichier audio (MP3, WAV, OGG)</label>
+                        <input type="file" class="form-control" id="audio" name="audio" accept="audio/*" required>
+                        <div class="form-text">Taille maximale recommandée: 10 MB</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Aperçu</label>
+                        <audio id="audio-preview" controls class="d-block w-100 mb-2" style="display: none !important;"></audio>
+                        <div id="no-preview-message" class="text-muted">Sélectionnez un fichier pour l'aperçu</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="duree" class="form-label">Durée (secondes)</label>
+                        <input type="number" class="form-control" id="duree" name="duree" value="0" readonly>
+                        <div class="form-text">La durée sera calculée automatiquement à partir du fichier.</div>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> Enregistrer
+                    </button>
+                </form>
+            </div>
+            
+            <!-- Option 2: Enregistrer directement -->
+            <div class="tab-pane fade audio-tab-content" id="record-content" role="tabpanel" aria-labelledby="record-tab">
+                <form method="post" enctype="multipart/form-data" id="record-form">
+                    {% csrf_token %}
+                    <input type="hidden" name="method" value="record">
+                    <input type="hidden" name="recorded_audio_data" id="recorded-audio-data">
+                    
+                    <div class="mb-3">
+                        <label for="titre-record" class="form-label">Titre de l'enregistrement</label>
+                        <input type="text" class="form-control" id="titre-record" name="titre" required placeholder="Donnez un titre à cet enregistrement">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Enregistrement</label>
+                        <div class="audio-visual">
+                            <canvas id="visualizer" class="visualizer-canvas"></canvas>
+                        </div>
+                        
+                        <div class="recording-controls">
+                            <div class="record-button" id="record-button">
+                                <i class="fas fa-microphone fa-lg"></i>
+                            </div>
+                            <div class="timer" id="timer">00:00</div>
+                            <button type="button" class="btn btn-outline-secondary" id="stop-button" disabled>
+                                <i class="fas fa-stop"></i> Arrêter
+                            </button>
+                            <button type="button" class="btn btn-outline-primary" id="play-button" disabled>
+                                <i class="fas fa-play"></i> Écouter
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Aperçu de l'enregistrement</label>
+                        <audio id="recorded-audio-preview" controls class="d-block w-100 mb-2" style="display: none;" preload="auto"></audio>
+                        <div id="audio-error" class="text-danger mt-2" style="display: none;">Erreur lors de la lecture de l'audio.</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="duree-record" class="form-label">Durée (secondes)</label>
+                        <input type="number" class="form-control" id="duree-record" name="duree" value="0" readonly>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary" id="save-record-button" disabled>
+                        <i class="fas fa-save"></i> Enregistrer
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS Bundle with Popper -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+        // Script pour l'aperçu du fichier importé
+        document.getElementById('audio').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const audioPreview = document.getElementById('audio-preview');
+                const noPreviewMessage = document.getElementById('no-preview-message');
+                const durationInput = document.getElementById('duree');
+                
+                const url = URL.createObjectURL(file);
+                audioPreview.src = url;
+                audioPreview.style.display = 'block';
+                noPreviewMessage.style.display = 'none';
+                
+                // Calculer la durée
+                audioPreview.onloadedmetadata = function() {
+                    durationInput.value = Math.round(audioPreview.duration);
+                };
+            }
+        });
+        
+        // Script pour l'enregistrement audio
+        document.addEventListener('DOMContentLoaded', function() {
+            let mediaRecorder;
+            let audioChunks = [];
+            let startTime;
+            let timerInterval;
+            let audioStream;
+            let audioContext;
+            let analyser;
+            let canvasContext;
+            
+            const recordButton = document.getElementById('record-button');
+            const stopButton = document.getElementById('stop-button');
+            const playButton = document.getElementById('play-button');
+            const saveButton = document.getElementById('save-record-button');
+            const timer = document.getElementById('timer');
+            const recordedAudioPreview = document.getElementById('recorded-audio-preview');
+            const durationInput = document.getElementById('duree-record');
+            const recordedAudioData = document.getElementById('recorded-audio-data');
+            const visualizer = document.getElementById('visualizer');
+            const canvas = visualizer.getContext('2d');
+            
+            // Fonction pour mettre à jour le timer
+            function updateTimer() {
+                const now = new Date();
+                const diff = Math.floor((now - startTime) / 1000);
+                const minutes = Math.floor(diff / 60).toString().padStart(2, '0');
+                const seconds = (diff % 60).toString().padStart(2, '0');
+                timer.textContent = `${minutes}:${seconds}`;
+                durationInput.value = diff;
+            }
+            
+            // Fonction pour dessiner le visualiseur
+            function drawVisualizer() {
+                if (!analyser) return;
+                
+                requestAnimationFrame(drawVisualizer);
+                
+                const bufferLength = analyser.frequencyBinCount;
+                const dataArray = new Uint8Array(bufferLength);
+                analyser.getByteTimeDomainData(dataArray);
+                
+                canvas.clearRect(0, 0, visualizer.width, visualizer.height);
+                canvas.fillStyle = 'rgb(200, 200, 200)';
+                canvas.fillRect(0, 0, visualizer.width, visualizer.height);
+                
+                canvas.lineWidth = 2;
+                canvas.strokeStyle = 'rgb(0, 123, 255)';
+                canvas.beginPath();
+                
+                const sliceWidth = visualizer.width * 1.0 / bufferLength;
+                let x = 0;
+                
+                for (let i = 0; i < bufferLength; i++) {
+                    const v = dataArray[i] / 128.0;
+                    const y = v * visualizer.height / 2;
+                    
+                    if (i === 0) {
+                        canvas.moveTo(x, y);
+                    } else {
+                        canvas.lineTo(x, y);
+                    }
+                    
+                    x += sliceWidth;
+                }
+                
+                canvas.lineTo(visualizer.width, visualizer.height / 2);
+                canvas.stroke();
+            }
+            
+            // Ajuster la taille du canvas
+            function resizeCanvas() {
+                visualizer.width = visualizer.offsetWidth;
+                visualizer.height = visualizer.offsetHeight;
+            }
+            
+            window.addEventListener('resize', resizeCanvas);
+            resizeCanvas();
+            
+            // Démarrer l'enregistrement
+            recordButton.addEventListener('click', function() {
+                if (mediaRecorder && mediaRecorder.state === 'recording') {
+                    return;
+                }
+                
+                // Réinitialiser l'interface audio
+                recordedAudioPreview.src = '';
+                recordedAudioPreview.style.display = 'none';
+                audioChunks = [];
+                
+                navigator.mediaDevices.getUserMedia({ audio: true })
+                    .then(function(stream) {
+                        audioStream = stream;
+                        
+                        // Configurer l'analyseur audio pour le visualiseur
+                        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                        const source = audioContext.createMediaStreamSource(stream);
+                        analyser = audioContext.createAnalyser();
+                        analyser.fftSize = 2048;
+                        source.connect(analyser);
+                        
+                        drawVisualizer();
+                        
+                        // Essayer plusieurs options de format pour une meilleure compatibilité
+                        let options = {};
+                        if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
+                            options = { mimeType: 'audio/webm;codecs=opus' };
+                            console.log("Utilisation du format audio/webm;codecs=opus");
+                        } else if (MediaRecorder.isTypeSupported('audio/webm')) {
+                            options = { mimeType: 'audio/webm' };
+                            console.log("Utilisation du format audio/webm");
+                        } else if (MediaRecorder.isTypeSupported('audio/mp4')) {
+                            options = { mimeType: 'audio/mp4' };
+                            console.log("Utilisation du format audio/mp4");
+                        } else {
+                            console.log("Aucun format supporté trouvé, utilisation du format par défaut");
+                        }
+                        
+                        // Configurer l'enregistreur
+                        mediaRecorder = new MediaRecorder(stream, options);
+                        
+                        mediaRecorder.addEventListener('dataavailable', function(e) {
+                            if (e.data.size > 0) {
+                                audioChunks.push(e.data);
+                                console.log("Données audio reçues", e.data.size, "bytes");
+                            }
+                        });
+                        
+                        mediaRecorder.addEventListener('stop', function() {
+                            console.log("Arrêt de l'enregistrement, création du blob");
+                            
+                            // Déterminer le type MIME à utiliser pour le blob
+                            let blobType = options.mimeType || 'audio/webm';
+                            const audioBlob = new Blob(audioChunks, { type: blobType });
+                            console.log("Blob créé:", audioBlob.size, "bytes", "type:", blobType);
+                            
+                            const audioUrl = URL.createObjectURL(audioBlob);
+                            console.log("URL d'objet créée:", audioUrl);
+                            
+                            // Définir la source et afficher l'élément audio
+                            recordedAudioPreview.src = audioUrl;
+                            recordedAudioPreview.style.display = 'block';
+                            
+                            // Convertir en base64 pour l'envoi
+                            const reader = new FileReader();
+                            reader.onloadend = function() {
+                                const base64data = reader.result;
+                                recordedAudioData.value = base64data;
+                                console.log("Données base64 générées, longueur:", base64data.length);
+                            };
+                            reader.readAsDataURL(audioBlob);
+                            
+                            // Arrêter les pistes
+                            audioStream.getTracks().forEach(track => track.stop());
+                            
+                            // Activer les contrôles
+                            playButton.disabled = false;
+                            saveButton.disabled = false;
+                            
+                            // Tester la lecture pour vérifier si l'audio est valide
+                            recordedAudioPreview.onloadedmetadata = function() {
+                                console.log("Métadonnées audio chargées, durée:", recordedAudioPreview.duration);
+                                if (recordedAudioPreview.duration === 0 || isNaN(recordedAudioPreview.duration)) {
+                                    console.error("Audio invalide détecté - durée nulle ou non définie");
+                                    alert("L'enregistrement audio semble être corrompu. Veuillez réessayer.");
+                                }
+                            };
+                            
+                            recordedAudioPreview.onerror = function(e) {
+                                console.error("Erreur lors du chargement de l'audio:", e);
+                                alert("Erreur lors du chargement de l'audio. Veuillez réessayer.");
+                            };
+                        });
+                        
+                        // Démarrer l'enregistrement avec intervalle de 100ms pour les chunks
+                        mediaRecorder.start(100);
+                        console.log("Enregistrement démarré");
+                        startTime = new Date();
+                        timerInterval = setInterval(updateTimer, 1000);
+                        
+                        // Mettre à jour l'interface
+                        recordButton.classList.add('recording');
+                        stopButton.disabled = false;
+                        playButton.disabled = true;
+                        saveButton.disabled = true;
+                    })
+                    .catch(function(err) {
+                        console.error('Erreur lors de l\'accès au microphone:', err);
+                        alert('Impossible d\'accéder au microphone. Vérifiez les permissions.');
+                    });
+            });
+            
+            // Arrêter l'enregistrement
+            stopButton.addEventListener('click', function() {
+                if (mediaRecorder && mediaRecorder.state === 'recording') {
+                    console.log("Arrêt de l'enregistrement demandé");
+                    mediaRecorder.stop();
+                    clearInterval(timerInterval);
+                    
+                    recordButton.classList.remove('recording');
+                    stopButton.disabled = true;
+                }
+            });
+            
+            // Lecture de l'enregistrement
+            playButton.addEventListener('click', function() {
+                if (recordedAudioPreview.src) {
+                    console.log("Lecture/pause de l'audio");
+                    if (recordedAudioPreview.paused) {
+                        recordedAudioPreview.play().then(() => {
+                            console.log("Lecture démarrée");
+                            playButton.innerHTML = '<i class="fas fa-pause"></i> Pause';
+                        }).catch(e => {
+                            console.error('Erreur de lecture:', e);
+                            alert('Impossible de lire l\'audio. Erreur: ' + e.message);
+                        });
+                    } else {
+                        recordedAudioPreview.pause();
+                        console.log("Lecture mise en pause");
+                        playButton.innerHTML = '<i class="fas fa-play"></i> Écouter';
+                    }
+                } else {
+                    console.error("Aucune source audio disponible");
+                    alert('Aucun enregistrement disponible');
+                }
+            });
+            
+            // Événement fin de lecture
+            recordedAudioPreview.addEventListener('ended', function() {
+                console.log("Lecture terminée");
+                playButton.innerHTML = '<i class="fas fa-play"></i> Écouter';
+            });
+            
+            // Soumission du formulaire
+            document.getElementById('record-form').addEventListener('submit', function(e) {
+                if (!recordedAudioData.value) {
+                    e.preventDefault();
+                    alert('Veuillez enregistrer un audio avant de soumettre.');
+                } else {
+                    console.log("Formulaire soumis avec données audio");
+                }
+            });
+        });
+    </script>
+</body>
+</html> 

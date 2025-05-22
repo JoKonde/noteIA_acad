@@ -265,6 +265,92 @@
       justify-content: flex-start;
     }
   }
+
+  .audio-card {
+    width: 100%;
+    max-width: 300px;
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+  
+  .audio-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+  }
+  
+  .audio-visualization {
+    height: 60px;
+    background: linear-gradient(to right, #f0f2ff, #e6f4ff);
+    border-radius: 8px;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  .audio-waveform {
+    width: 80%;
+    height: 40px;
+    background-image: url("data:image/svg+xml,%3Csvg width='100%25' height='100%25' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0,20 Q5,5 10,20 T20,20 T30,20 T40,20 T50,20 T60,20 T70,20 T80,20 T90,20 T100,20' stroke='%234a86e8' stroke-width='2' fill='none'/%3E%3C/svg%3E");
+    background-size: 100% 100%;
+  }
+  
+  .audio-controls {
+    margin-top: 10px;
+  }
+  
+  .audio-time {
+    min-width: 85px;
+  }
+
+  /* Styles améliorés pour les notes OCR */
+  .ocr-card {
+    width: 100% !important;
+    max-width: 100% !important;
+    grid-column: 1 / -1;
+  }
+  
+  .ocr-text-container {
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    padding: 1.5rem;
+    border: 1px solid #e9ecef;
+    box-shadow: inset 0 1px 3px rgba(0,0,0,0.05);
+  }
+  
+  .ocr-text {
+    white-space: pre-line;
+    font-family: 'Roboto Mono', monospace, sans-serif;
+    line-height: 1.6;
+    font-size: 0.95rem;
+    color: #212529;
+    overflow-x: auto;
+  }
+  
+  .ocr-controls {
+    display: flex;
+    gap: 0.75rem;
+    margin-top: 1rem;
+  }
+  
+  .card-header-ocr {
+    background-color: #f0f7ff;
+    border-bottom: 1px solid #d0e3ff;
+  }
+  
+  .ocr-image-container {
+    position: relative;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  }
+  
+  .ocr-image {
+    width: 100%;
+    height: auto;
+    max-height: 300px;
+    object-fit: contain;
+  }
 </style>
 
 <!-- MathJax pour les formules mathématiques, physiques et électriques -->
@@ -474,9 +560,14 @@
 </div>
 
 <h3 class="section-title"><i class="bi bi-mic-fill me-2"></i>Audios</h3>
+<div class="d-flex justify-content-end mb-3">
+  <a class="btn btn-primary" href="{% url 'create_audionote' note.id %}">
+    <i class="bi bi-plus-circle me-1"></i> Ajouter un audio
+  </a>
+</div>
 <div class="media-container">
   {% for audio in audionotes %}
-    <div class="media-card">
+    <div class="media-card audio-card">
       <form method="POST"
             action="{% url 'delete_audionote' audio.id %}"
             onsubmit="return confirm('Supprimer cet audio ?');">
@@ -489,16 +580,27 @@
       </form>
 
       <div class="media-content text-center py-3">
-        <i class="bi bi-file-earmark-music"
-           style="font-size: 2.5rem; color:#0d6efd;"></i>
+        <div class="audio-visualization mb-2">
+          <div class="audio-waveform" id="waveform-{{ audio.id }}"></div>
+        </div>
         <p class="media-title">
           {{ audio.titre }}
         </p>
         <div class="media-info mb-2">
           <div><i class="bi bi-person-circle me-1"></i> {{ audio.userEditeur.username }}</div>
           <div><i class="bi bi-clock me-1"></i> {{ audio.date|date:"d/m/Y H:i" }}</div>
+          <div><i class="bi bi-stopwatch me-1"></i> {{ audio.duree }} secondes</div>
         </div>
-        <audio controls class="w-100 mt-2">
+        <div class="audio-controls d-flex justify-content-center align-items-center">
+          <button class="btn btn-sm btn-primary audio-play-btn me-2" 
+                  data-audio-id="{{ audio.id }}" 
+                  data-audio-src="{% static audio.path %}">
+            <i class="bi bi-play-fill play-icon-{{ audio.id }}"></i>
+            <span class="play-text-{{ audio.id }}">Lire</span>
+          </button>
+          <div class="audio-time small text-muted" id="audio-time-{{ audio.id }}">00:00 / 00:00</div>
+        </div>
+        <audio id="audio-player-{{ audio.id }}" class="d-none">
           <source src="{% static audio.path %}" type="audio/mpeg">
           Votre navigateur ne supporte pas l'élément audio.
         </audio>
@@ -577,7 +679,7 @@
 <h3 class="section-title"><i class="bi bi-image-alt me-2"></i>OCR (Reconnaissance de texte)</h3>
 <div class="media-container">
   {% for ocr in ocrnotes %}
-    <div class="media-card" style="width: 100%;">
+    <div class="media-card ocr-card">
       <form method="POST"
             action="{% url 'delete_ocrnote' ocr.id %}"
             onsubmit="return confirm('Supprimer cette extraction OCR ?');">
@@ -593,31 +695,46 @@
         <div class="row">
           {% if ocr.image_path %}
           <div class="col-md-4">
-            <div class="media-thumbnail mb-3">
-              <img src="{% static ocr.image_path %}" alt="Image OCR" class="img-fluid rounded">
+            <div class="ocr-image-container mb-3">
+              <img src="{% static ocr.image_path %}" alt="Image OCR" class="ocr-image">
             </div>
           </div>
           {% endif %}
           <div class="col-md-{% if ocr.image_path %}8{% else %}12{% endif %}">
             <div class="card">
-              <div class="card-header d-flex justify-content-between align-items-center">
+              <div class="card-header card-header-ocr d-flex justify-content-between align-items-center">
                 <span><i class="bi bi-text-paragraph me-2"></i>Texte extrait</span>
                 <small class="text-muted">
                   <i class="bi bi-person-circle me-1"></i> {{ ocr.userEditeur.username }} - 
                   <i class="bi bi-clock me-1"></i> {{ ocr.date|date:"d/m/Y H:i" }}
                 </small>
               </div>
-              <div class="card-body">
-                <p class="card-text">{{ ocr.texte_extrait }}</p>
+              <div class="card-body ocr-text-container">
+                <p class="ocr-text">{{ ocr.texte_extrait }}</p>
+              </div>
+              <div class="card-footer bg-white">
+                <div class="ocr-controls">
+                  <button class="btn btn-sm btn-outline-primary copy-ocr-btn" data-ocr-id="{{ ocr.id }}">
+                    <i class="bi bi-clipboard me-1"></i> Copier le texte
+                  </button>
+                  <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="collapse" data-bs-target="#fullOcrText{{ ocr.id }}" aria-expanded="false">
+                    <i class="bi bi-arrows-expand me-1"></i> Afficher tout
+                  </button>
+                </div>
+                <div class="collapse mt-3" id="fullOcrText{{ ocr.id }}">
+                  <div class="ocr-text-container">
+                    <pre class="ocr-text mb-0">{{ ocr.texte_extrait }}</pre>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
         </div>
       </div>
     </div>
-  {% empty %}
-    <p class="empty-message">Aucune extraction OCR pour cette note.</p>
-  {% endfor %}
+    {% empty %}
+      <p class="empty-message">Aucune extraction OCR pour cette note.</p>
+    {% endfor %}
 </div>
 
 {% if is_owner and collaborators %}
@@ -640,6 +757,179 @@
     loop: false,
     touchNavigation: true,
     keyboardNavigation: true,
+  });
+</script>
+
+<!-- Script pour la gestion des notes OCR -->
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    // Gestion des boutons de copie du texte OCR
+    const copyButtons = document.querySelectorAll('.copy-ocr-btn');
+    
+    copyButtons.forEach(button => {
+      button.addEventListener('click', function() {
+        const ocrId = this.getAttribute('data-ocr-id');
+        const textElement = document.querySelector(`#fullOcrText${ocrId} pre`);
+        
+        if (textElement) {
+          const text = textElement.textContent;
+          
+          // Créer un élément textarea temporaire pour la copie
+          const textarea = document.createElement('textarea');
+          textarea.value = text;
+          textarea.setAttribute('readonly', '');
+          textarea.style.position = 'absolute';
+          textarea.style.left = '-9999px';
+          document.body.appendChild(textarea);
+          
+          // Sélectionner et copier le texte
+          textarea.select();
+          document.execCommand('copy');
+          
+          // Supprimer l'élément temporaire
+          document.body.removeChild(textarea);
+          
+          // Changer l'apparence du bouton temporairement
+          const originalText = this.innerHTML;
+          this.innerHTML = '<i class="bi bi-check-circle me-1"></i> Copié !';
+          this.classList.replace('btn-outline-primary', 'btn-success');
+          
+          // Restaurer l'apparence du bouton après 2 secondes
+          setTimeout(() => {
+            this.innerHTML = originalText;
+            this.classList.replace('btn-success', 'btn-outline-primary');
+          }, 2000);
+        }
+      });
+    });
+    
+    // Améliorer l'affichage des textes OCR longs
+    const ocrTexts = document.querySelectorAll('.card-body .ocr-text');
+    
+    ocrTexts.forEach(textElement => {
+      // Si le texte dépasse 200 caractères, le tronquer
+      if (textElement.textContent.length > 200) {
+        const originalText = textElement.textContent;
+        const truncatedText = originalText.substring(0, 200) + '...';
+        textElement.textContent = truncatedText;
+      }
+      
+      // Formater automatiquement certains types de contenu
+      formatOcrText(textElement);
+    });
+    
+    // Également formater le texte complet dans les sections dépliables
+    const fullOcrTexts = document.querySelectorAll('.collapse .ocr-text');
+    fullOcrTexts.forEach(formatOcrText);
+    
+    // Fonction pour améliorer le formatage du texte OCR
+    function formatOcrText(element) {
+      let text = element.textContent;
+      
+      // Détection de code potentiel (accolades, parenthèses, etc.)
+      if (text.includes('{') && text.includes('}') || 
+          (text.includes('function') && text.includes('(') && text.includes(')')) ||
+          (text.includes('class') && text.includes('{')) ||
+          (text.includes('import') && text.includes('from')) ||
+          (text.includes('def ') && text.includes(':')) ||
+          (text.includes('<') && text.includes('</') && text.includes('>'))) {
+        element.style.fontFamily = 'Consolas, monospace';
+        element.style.backgroundColor = '#f5f5f5';
+        element.style.padding = '0.5rem';
+        element.style.borderRadius = '4px';
+        element.style.border = '1px solid #e0e0e0';
+      }
+      
+      // Détection de listes
+      if ((text.match(/^\s*[\-\*]\s+/gm) || []).length > 2 ||  // Liste à puces
+          (text.match(/^\s*\d+\.\s+/gm) || []).length > 2) {   // Liste numérotée
+        element.style.paddingLeft = '1.5rem';
+      }
+      
+      // Détection de tableaux
+      if ((text.match(/\|\s*[^|]+\s*\|/g) || []).length > 2) {
+        element.style.fontFamily = 'Consolas, monospace';
+        element.style.whiteSpace = 'pre';
+      }
+    }
+  });
+</script>
+
+<!-- Ajout du script de lecture audio après la balise endblock -->
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    // Gestionnaire pour tous les boutons de lecture audio
+    const audioPlayers = {};
+    const audioButtons = document.querySelectorAll('.audio-play-btn');
+    
+    audioButtons.forEach(button => {
+      const audioId = button.getAttribute('data-audio-id');
+      const audioSrc = button.getAttribute('data-audio-src');
+      const audioElement = document.getElementById(`audio-player-${audioId}`);
+      const timeDisplay = document.getElementById(`audio-time-${audioId}`);
+      const playIcon = document.querySelector(`.play-icon-${audioId}`);
+      const playText = document.querySelector(`.play-text-${audioId}`);
+      
+      // Stocker la référence à l'élément audio
+      audioPlayers[audioId] = {
+        element: audioElement,
+        playing: false
+      };
+      
+      // Mettre à jour l'affichage du temps
+      audioElement.addEventListener('timeupdate', () => {
+        const currentTime = formatTime(audioElement.currentTime);
+        const duration = formatTime(audioElement.duration || 0);
+        timeDisplay.textContent = `${currentTime} / ${duration}`;
+      });
+      
+      // Lorsque l'audio se termine
+      audioElement.addEventListener('ended', () => {
+        audioPlayers[audioId].playing = false;
+        playIcon.classList.remove('bi-pause-fill');
+        playIcon.classList.add('bi-play-fill');
+        playText.textContent = 'Lire';
+      });
+      
+      // Gestion du clic sur le bouton de lecture
+      button.addEventListener('click', () => {
+        const player = audioPlayers[audioId];
+        
+        // Arrêter tous les autres audios en cours de lecture
+        Object.keys(audioPlayers).forEach(id => {
+          if (id !== audioId && audioPlayers[id].playing) {
+            audioPlayers[id].element.pause();
+            audioPlayers[id].playing = false;
+            document.querySelector(`.play-icon-${id}`).classList.remove('bi-pause-fill');
+            document.querySelector(`.play-icon-${id}`).classList.add('bi-play-fill');
+            document.querySelector(`.play-text-${id}`).textContent = 'Lire';
+          }
+        });
+        
+        if (player.playing) {
+          // Mettre en pause
+          audioElement.pause();
+          player.playing = false;
+          playIcon.classList.remove('bi-pause-fill');
+          playIcon.classList.add('bi-play-fill');
+          playText.textContent = 'Lire';
+        } else {
+          // Lancer la lecture
+          audioElement.play();
+          player.playing = true;
+          playIcon.classList.remove('bi-play-fill');
+          playIcon.classList.add('bi-pause-fill');
+          playText.textContent = 'Pause';
+        }
+      });
+    });
+    
+    // Fonction pour formater le temps en mm:ss
+    function formatTime(seconds) {
+      const mins = Math.floor(seconds / 60);
+      const secs = Math.floor(seconds % 60);
+      return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    }
   });
 </script>
 

@@ -15,6 +15,7 @@ from django.http import JsonResponse
 import markdown
 from dotenv import load_dotenv
 import re
+import base64
 
 JWT_SECRET = os.environ.get('JWT_SECRET', 'lumiere_du_monde')
 JWT_ALGORITHM = 'HS256'
@@ -1435,37 +1436,92 @@ def create_audionote(request, note_id):
         return redirect('dashboard')
 
     if request.method == "POST":
-        uploaded = request.FILES.get('audio')
         titre = request.POST.get('titre', 'Audio sans titre')
         duree = request.POST.get('duree', 0)  # En secondes
+        method = request.POST.get('method', 'upload')  # Méthode d'ajout : upload ou record
         
-        if not uploaded:
-            messages.error(request, "Veuillez sélectionner un fichier audio.")
-            return render(request, 'landing/create_audionote.html', {
-                'note': note,
-                'user_contact': user.contact
-            })
-
-        # Extension et nom de fichier unique
-        ext = os.path.splitext(uploaded.name)[1]
-        filename = f"{note.id}_{int(timezone.now().timestamp())}{ext}"
-
-        # Répertoire de destination
+        # Chemin de destination
         assets_dir = os.path.join(
             settings.BASE_DIR,
             'landing', 'templates', 'landing', 'assets', 'audio'
         )
         os.makedirs(assets_dir, exist_ok=True)
+        
+        # Nom de fichier unique basé sur l'horodatage
+        timestamp = int(timezone.now().timestamp())
+        
+        if method == 'upload':
+            # Méthode 1: Import d'un fichier audio
+            uploaded = request.FILES.get('audio')
+            
+            if not uploaded:
+                messages.error(request, "Veuillez sélectionner un fichier audio.")
+                return render(request, 'landing/create_audionote.html', {
+                    'note': note,
+                    'user_contact': user.contact
+                })
 
-        save_path = os.path.join(assets_dir, filename)
-        rel_path = f"audio/{filename}"
+            # Extension et nom de fichier unique
+            ext = os.path.splitext(uploaded.name)[1]
+            filename = f"{note.id}_audio_{timestamp}{ext}"
+            save_path = os.path.join(assets_dir, filename)
+            rel_path = f"audio/{filename}"
 
-        # Sauvegarder le fichier
-        with open(save_path, 'wb') as f:
-            for chunk in uploaded.chunks():
-                f.write(chunk)
+            # Sauvegarder le fichier
+            with open(save_path, 'wb') as f:
+                for chunk in uploaded.chunks():
+                    f.write(chunk)
+                    
+        elif method == 'record':
+            # Méthode 2: Enregistrement direct
+            recorded_audio_data = request.POST.get('recorded_audio_data')
+            
+            if not recorded_audio_data:
+                messages.error(request, "Aucun enregistrement audio trouvé.")
+                return render(request, 'landing/create_audionote.html', {
+                    'note': note,
+                    'user_contact': user.contact
+                })
+            
+            # Extraire les données base64
+            if ',' in recorded_audio_data:
+                format_info, base64_str = recorded_audio_data.split(',', 1)
+            else:
+                base64_str = recorded_audio_data
+            
+            # Déterminer l'extension du fichier à partir du format_info
+            file_ext = '.webm'  # par défaut
+            if format_info and 'data:audio/' in format_info:
+                mime_type = format_info.split('data:')[1].split(';')[0]
+                if mime_type == 'audio/webm':
+                    file_ext = '.webm'
+                elif mime_type == 'audio/mp4':
+                    file_ext = '.mp4'
+                elif mime_type == 'audio/ogg':
+                    file_ext = '.ogg'
+                elif mime_type == 'audio/wav' or mime_type == 'audio/x-wav':
+                    file_ext = '.wav'
+                
+                print(f"Format audio détecté: {mime_type}, extension utilisée: {file_ext}")
+                
+            # Convertir base64 en données binaires
+            audio_data = base64.b64decode(base64_str)
+            
+            # Sauvegarder le fichier avec l'extension appropriée
+            filename = f"{note.id}_audio_record_{timestamp}{file_ext}"
+            save_path = os.path.join(assets_dir, filename)
+            rel_path = f"audio/{filename}"
+            
+            with open(save_path, 'wb') as f:
+                f.write(audio_data)
+        else:
+            messages.error(request, "Méthode d'ajout audio non reconnue.")
+            return render(request, 'landing/create_audionote.html', {
+                'note': note,
+                'user_contact': user.contact
+            })
 
-        # Enregistrer en base
+        # Enregistrer en base de données
         AudioNote.objects.create(
             note=note,
             path=rel_path,
@@ -1650,7 +1706,9 @@ def create_ocrnote(request, note_id):
     if request.method == "POST":
         uploaded = request.FILES.get('image')
         texte_manuel = request.POST.get('texte_manuel', '')
+        add_to_textnote = 'add_to_textnote' in request.POST
         
+        # Vérifier qu'on a soit une image, soit du texte
         if not uploaded and not texte_manuel:
             messages.error(request, "Veuillez sélectionner une image ou entrer du texte manuellement.")
             return render(request, 'landing/create_ocrnote.html', {
@@ -1659,7 +1717,7 @@ def create_ocrnote(request, note_id):
             })
 
         image_rel_path = None
-        # Si on a uploadé une image
+        # Si on a uploadé une image (méthode import)
         if uploaded:
             # Extension et nom de fichier unique
             ext = os.path.splitext(uploaded.name)[1]
@@ -1679,22 +1737,58 @@ def create_ocrnote(request, note_id):
             with open(save_path, 'wb') as f:
                 for chunk in uploaded.chunks():
                     f.write(chunk)
-                    
-            # Ici, on pourrait appeler un service OCR pour extraire le texte
-            # Pour l'instant, on utilise le texte fourni manuellement ou un placeholder
-            texte_extrait = texte_manuel if texte_manuel else "Texte extrait par OCR..."
-        else:
-            # Si pas d'image, on utilise juste le texte manuel
-            texte_extrait = texte_manuel
+        # Si c'est une image capturée par la caméra (base64)
+        elif 'captured-image-data' in request.POST and request.POST.get('captured-image-data'):
+            image_data = request.POST.get('captured-image-data')
+            
+            # Extraire les données base64
+            if ',' in image_data:
+                format_info, base64_str = image_data.split(',', 1)
+            else:
+                base64_str = image_data
+                
+            # Convertir base64 en données binaires
+            image_binary = base64.b64decode(base64_str)
+            
+            # Créer un nom de fichier unique
+            filename = f"{note.id}_ocr_capture_{int(timezone.now().timestamp())}.png"
+            
+            # Répertoire de destination
+            assets_dir = os.path.join(
+                settings.BASE_DIR,
+                'landing', 'templates', 'landing', 'assets', 'ocr'
+            )
+            os.makedirs(assets_dir, exist_ok=True)
+            
+            save_path = os.path.join(assets_dir, filename)
+            image_rel_path = f"ocr/{filename}"
+            
+            # Sauvegarder l'image
+            with open(save_path, 'wb') as f:
+                f.write(image_binary)
 
-        # Enregistrer en base
-        OcrNote.objects.create(
+        # Texte extrait utilisé pour les deux modèles
+        texte_extrait = texte_manuel
+
+        # 1. Créer l'entrée OcrNote
+        ocr_note = OcrNote.objects.create(
             note=note,
             image_path=image_rel_path,
             texte_extrait=texte_extrait,
             userEditeur=user
         )
-        messages.success(request, "Extraction OCR ajoutée avec succès !")
+        
+        # 2. Si demandé, créer également une entrée TextNote
+        if add_to_textnote:
+            TextNote.objects.create(
+                note=note,
+                texte=texte_extrait,
+                userEditeur=user
+            )
+            messages.success(request, "OCR et note texte ajoutés avec succès !")
+        else:
+            messages.success(request, "Extraction OCR ajoutée avec succès !")
+            
         return redirect('note_detail', note_id=note.id)
 
     return render(request, 'landing/create_ocrnote.html', {

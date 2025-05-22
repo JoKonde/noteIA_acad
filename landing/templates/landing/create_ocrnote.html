@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OCR - Reconnaissance de texte - NoteIA</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        .ocr-tab-content {
+            padding: 20px;
+            border: 1px solid #dee2e6;
+            border-top: 0;
+            border-radius: 0 0 0.25rem 0.25rem;
+        }
+        .image-preview {
+            max-width: 100%;
+            max-height: 300px;
+            margin: 15px 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 5px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .capture-area {
+            position: relative;
+            margin: 15px 0;
+        }
+        #video {
+            width: 100%;
+            max-width: 640px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        #canvas {
+            display: none;
+        }
+        .camera-controls {
+            margin-top: 10px;
+            display: flex;
+            gap: 10px;
+        }
+        .capture-button {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background-color: #dc3545;
+            color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+        .loading-spinner {
+            display: none;
+            text-align: center;
+            margin: 20px 0;
+        }
+        .ocr-result {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-4">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1>OCR - Reconnaissance de texte</h1>
+            <a href="{% url 'note_detail' note_id=note.id %}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i> Retour à la note
+            </a>
+        </div>
+
+        {% if messages %}
+            <div class="messages mb-4">
+                {% for message in messages %}
+                    <div class="alert alert-{{ message.tags }}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        <div class="card mb-4">
+            <div class="card-header bg-info text-white">
+                <i class="fas fa-info-circle me-2"></i> Comment ça marche
+            </div>
+            <div class="card-body">
+                <p>Cette fonctionnalité utilise la reconnaissance optique de caractères (OCR) pour extraire du texte à partir d'images.</p>
+                <ol>
+                    <li>Importez une image ou prenez une photo contenant du texte</li>
+                    <li>Le système analysera l'image et extraira le texte</li>
+                    <li>Vérifiez et corrigez le texte si nécessaire avant d'enregistrer</li>
+                </ol>
+                <p class="mb-0 text-muted"><small>Conseil : Pour de meilleurs résultats, assurez-vous que l'image est bien éclairée et que le texte est clairement visible.</small></p>
+            </div>
+        </div>
+
+        <!-- Onglets pour choisir la méthode d'ajout -->
+        <ul class="nav nav-tabs" id="ocrTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="import-tab" data-bs-toggle="tab" data-bs-target="#import-content" type="button" role="tab" aria-controls="import-content" aria-selected="true">
+                    <i class="fas fa-file-upload"></i> Importer une image
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="capture-tab" data-bs-toggle="tab" data-bs-target="#capture-content" type="button" role="tab" aria-controls="capture-content" aria-selected="false">
+                    <i class="fas fa-camera"></i> Capturer avec la caméra
+                </button>
+            </li>
+        </ul>
+
+        <div class="tab-content" id="ocrTabContent">
+            <!-- Option 1: Importer une image -->
+            <div class="tab-pane fade show active ocr-tab-content" id="import-content" role="tabpanel" aria-labelledby="import-tab">
+                <form method="post" enctype="multipart/form-data" id="import-form">
+                    {% csrf_token %}
+                    
+                    <div class="mb-3">
+                        <label for="image" class="form-label">Image contenant du texte (JPG, PNG, JPEG)</label>
+                        <input type="file" class="form-control" id="image" name="image" accept="image/*">
+                        <div class="form-text">Taille maximale recommandée: 5 MB</div>
+                    </div>
+                    
+                    <div class="mb-3 text-center" id="image-preview-container" style="display: none;">
+                        <img id="image-preview" class="image-preview" alt="Aperçu de l'image">
+                        <button type="button" class="btn btn-primary mt-2" id="process-image-btn">
+                            <i class="fas fa-magic me-2"></i> Extraire le texte
+                        </button>
+                    </div>
+                    
+                    <div class="loading-spinner" id="loading-spinner">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Chargement...</span>
+                        </div>
+                        <p class="mt-2">Extraction du texte en cours...</p>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="texte_manuel" class="form-label">Texte extrait</label>
+                        <textarea class="form-control" id="texte_manuel" name="texte_manuel" rows="10" placeholder="Le texte extrait apparaîtra ici. Vous pouvez aussi le saisir ou le modifier manuellement."></textarea>
+                    </div>
+                    
+                    <div class="d-flex justify-content-between">
+                        <button type="button" class="btn btn-secondary" id="add-to-textnote-btn">
+                            <i class="fas fa-plus-circle me-2"></i> Ajouter aussi comme note texte
+                        </button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save me-2"></i> Enregistrer l'OCR
+                        </button>
+                    </div>
+                </form>
+            </div>
+            
+            <!-- Option 2: Capturer avec la caméra -->
+            <div class="tab-pane fade ocr-tab-content" id="capture-content" role="tabpanel" aria-labelledby="capture-tab">
+                <form method="post" enctype="multipart/form-data" id="capture-form">
+                    {% csrf_token %}
+                    <input type="hidden" name="captured-image-data" id="captured-image-data">
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Caméra</label>
+                        <div class="capture-area">
+                            <video id="video" autoplay playsinline></video>
+                            <canvas id="canvas"></canvas>
+                        </div>
+                        
+                        <div class="camera-controls">
+                            <div class="capture-button" id="capture-button">
+                                <i class="fas fa-camera fa-lg"></i>
+                            </div>
+                            <button type="button" class="btn btn-outline-secondary" id="switch-camera-btn">
+                                <i class="fas fa-sync-alt me-2"></i> Changer de caméra
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3 text-center" id="captured-preview-container" style="display: none;">
+                        <img id="captured-preview" class="image-preview" alt="Image capturée">
+                        <button type="button" class="btn btn-primary mt-2" id="process-capture-btn">
+                            <i class="fas fa-magic me-2"></i> Extraire le texte
+                        </button>
+                    </div>
+                    
+                    <div class="loading-spinner" id="capture-loading-spinner">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Chargement...</span>
+                        </div>
+                        <p class="mt-2">Extraction du texte en cours...</p>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="capture_texte_manuel" class="form-label">Texte extrait</label>
+                        <textarea class="form-control" id="capture_texte_manuel" name="texte_manuel" rows="10" placeholder="Le texte extrait apparaîtra ici. Vous pouvez aussi le saisir ou le modifier manuellement."></textarea>
+                    </div>
+                    
+                    <div class="d-flex justify-content-between">
+                        <button type="button" class="btn btn-secondary" id="capture-add-to-textnote-btn">
+                            <i class="fas fa-plus-circle me-2"></i> Ajouter aussi comme note texte
+                        </button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save me-2"></i> Enregistrer l'OCR
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS Bundle with Popper -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Tesseract.js pour OCR -->
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Variables globales
+            let currentStream = null;
+            let shouldAddToTextNote = false;
+            
+            // Éléments du DOM
+            const importForm = document.getElementById('import-form');
+            const captureForm = document.getElementById('capture-form');
+            const imageInput = document.getElementById('image');
+            const imagePreview = document.getElementById('image-preview');
+            const imagePreviewContainer = document.getElementById('image-preview-container');
+            const processImageBtn = document.getElementById('process-image-btn');
+            const loadingSpinner = document.getElementById('loading-spinner');
+            const texteManuel = document.getElementById('texte_manuel');
+            const addToTextnoteBtn = document.getElementById('add-to-textnote-btn');
+            
+            const video = document.getElementById('video');
+            const canvas = document.getElementById('canvas');
+            const captureButton = document.getElementById('capture-button');
+            const switchCameraBtn = document.getElementById('switch-camera-btn');
+            const capturedPreview = document.getElementById('captured-preview');
+            const capturedPreviewContainer = document.getElementById('captured-preview-container');
+            const processCaptureBtn = document.getElementById('process-capture-btn');
+            const captureLoadingSpinner = document.getElementById('capture-loading-spinner');
+            const captureTexteManuel = document.getElementById('capture_texte_manuel');
+            const captureAddToTextnoteBtn = document.getElementById('capture-add-to-textnote-btn');
+            const capturedImageData = document.getElementById('captured-image-data');
+            
+            // Activer/désactiver le bouton d'ajout comme note texte
+            addToTextnoteBtn.addEventListener('click', function() {
+                shouldAddToTextNote = true;
+                importForm.submit();
+            });
+            
+            captureAddToTextnoteBtn.addEventListener('click', function() {
+                shouldAddToTextNote = true;
+                captureForm.submit();
+            });
+            
+            // Afficher l'aperçu de l'image importée
+            imageInput.addEventListener('change', function(e) {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        imagePreview.src = e.target.result;
+                        imagePreviewContainer.style.display = 'block';
+                    };
+                    reader.readAsDataURL(file);
+                }
+            });
+            
+            // Traitement OCR pour l'image importée
+            processImageBtn.addEventListener('click', function() {
+                if (imagePreview.src) {
+                    loadingSpinner.style.display = 'block';
+                    processImageBtn.disabled = true;
+                    
+                    // Utiliser Tesseract.js pour extraire le texte
+                    Tesseract.recognize(
+                        imagePreview.src,
+                        'fra',  // Langue française
+                        { 
+                            logger: m => console.log(m)
+                        }
+                    ).then(({ data: { text } }) => {
+                        // Afficher le texte extrait
+                        texteManuel.value = text;
+                        loadingSpinner.style.display = 'none';
+                        processImageBtn.disabled = false;
+                    }).catch(err => {
+                        console.error('Erreur OCR:', err);
+                        alert('Erreur lors de l\'extraction du texte. Veuillez réessayer.');
+                        loadingSpinner.style.display = 'none';
+                        processImageBtn.disabled = false;
+                    });
+                } else {
+                    alert('Veuillez d\'abord sélectionner une image.');
+                }
+            });
+            
+            // Initialiser la caméra
+            document.getElementById('capture-tab').addEventListener('click', startCamera);
+            
+            function startCamera() {
+                // Arrêter tout flux existant
+                if (currentStream) {
+                    currentStream.getTracks().forEach(track => track.stop());
+                }
+                
+                // Accéder à la caméra avec les contraintes par défaut
+                navigator.mediaDevices.getUserMedia({ video: true })
+                    .then(function(stream) {
+                        currentStream = stream;
+                        video.srcObject = stream;
+                    })
+                    .catch(function(err) {
+                        console.error('Erreur d\'accès à la caméra:', err);
+                        alert('Impossible d\'accéder à la caméra. Veuillez vérifier les permissions.');
+                    });
+            }
+            
+            // Changer de caméra (avant/arrière)
+            switchCameraBtn.addEventListener('click', function() {
+                if (currentStream) {
+                    currentStream.getTracks().forEach(track => track.stop());
+                }
+                
+                // Tenter d'utiliser la caméra avant ou arrière
+                navigator.mediaDevices.getUserMedia({ 
+                    video: { facingMode: currentStream ? 'environment' : 'user' }
+                })
+                .then(function(stream) {
+                    currentStream = stream;
+                    video.srcObject = stream;
+                })
+                .catch(function(err) {
+                    console.error('Erreur lors du changement de caméra:', err);
+                    alert('Impossible de changer de caméra. Votre appareil n\'a peut-être qu\'une seule caméra.');
+                    // Revenir à la caméra par défaut
+                    startCamera();
+                });
+            });
+            
+            // Capturer une image
+            captureButton.addEventListener('click', function() {
+                if (currentStream) {
+                    const context = canvas.getContext('2d');
+                    // Définir les dimensions du canvas selon la vidéo
+                    canvas.width = video.videoWidth;
+                    canvas.height = video.videoHeight;
+                    // Dessiner l'image actuelle de la vidéo sur le canvas
+                    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+                    
+                    // Convertir en base64 pour l'aperçu et l'envoi
+                    const imageDataUrl = canvas.toDataURL('image/png');
+                    capturedPreview.src = imageDataUrl;
+                    capturedPreviewContainer.style.display = 'block';
+                    capturedImageData.value = imageDataUrl;
+                }
+            });
+            
+            // Traitement OCR pour l'image capturée
+            processCaptureBtn.addEventListener('click', function() {
+                if (capturedPreview.src) {
+                    captureLoadingSpinner.style.display = 'block';
+                    processCaptureBtn.disabled = true;
+                    
+                    // Utiliser Tesseract.js pour extraire le texte
+                    Tesseract.recognize(
+                        capturedPreview.src,
+                        'fra',  // Langue française
+                        { 
+                            logger: m => console.log(m)
+                        }
+                    ).then(({ data: { text } }) => {
+                        // Afficher le texte extrait
+                        captureTexteManuel.value = text;
+                        captureLoadingSpinner.style.display = 'none';
+                        processCaptureBtn.disabled = false;
+                    }).catch(err => {
+                        console.error('Erreur OCR:', err);
+                        alert('Erreur lors de l\'extraction du texte. Veuillez réessayer.');
+                        captureLoadingSpinner.style.display = 'none';
+                        processCaptureBtn.disabled = false;
+                    });
+                } else {
+                    alert('Veuillez d\'abord capturer une image.');
+                }
+            });
+            
+            // Ajouter un champ caché au formulaire pour indiquer si le texte doit être ajouté comme TextNote
+            importForm.addEventListener('submit', function(e) {
+                if (shouldAddToTextNote) {
+                    const hiddenInput = document.createElement('input');
+                    hiddenInput.type = 'hidden';
+                    hiddenInput.name = 'add_to_textnote';
+                    hiddenInput.value = 'true';
+                    importForm.appendChild(hiddenInput);
+                }
+            });
+            
+            captureForm.addEventListener('submit', function(e) {
+                if (shouldAddToTextNote) {
+                    const hiddenInput = document.createElement('input');
+                    hiddenInput.type = 'hidden';
+                    hiddenInput.name = 'add_to_textnote';
+                    hiddenInput.value = 'true';
+                    captureForm.appendChild(hiddenInput);
+                }
+            });
+            
+            // Nettoyer lors de la fermeture de la page
+            window.addEventListener('beforeunload', function() {
+                if (currentStream) {
+                    currentStream.getTracks().forEach(track => track.stop());
+                }
+            });
+        });
+    </script>
+</body>
+</html> 
