@@ -1095,6 +1095,13 @@ def eden_chat(request):
     conversation.derniere_interaction = timezone.now()
     conversation.save()
     
+    # Gérer la suppression de l'historique de conversation
+    if 'clear' in request.GET and request.GET.get('clear') == 'true':
+        # Supprimer tous les messages de la conversation
+        EdenMessage.objects.filter(conversation=conversation).delete()
+        messages.success(request, "L'historique de conversation a été effacé.")
+        return redirect('eden_chat')
+    
     if request.method == "POST":
         message_text = request.POST.get('message')
         
@@ -1114,8 +1121,8 @@ def eden_chat(request):
                 contenu=eden_response
             )
     
-    # Récupérer les 30 derniers messages de la conversation
-    messages_list = EdenMessage.objects.filter(conversation=conversation).order_by('date')[:30]
+    # Récupérer tous les messages de la conversation (pas de limite à 30)
+    messages_list = EdenMessage.objects.filter(conversation=conversation).order_by('date')
     
     return render(request, 'landing/eden_chat.html', {
         'messages': messages_list,
@@ -1256,6 +1263,52 @@ def detect_user_intent(user, message):
             
             return "create_note", f"Dans quel cours souhaitez-vous créer cette note? Vos cours disponibles sont: {courses_list}"
     
+    # Intention de générer du texte pour une note
+    elif any(x in message_lower for x in ["génère", "générer", "rédige", "écrire", "ajouter du texte", "créer un texte"]):
+        note_reference = extract_note_reference(message, user)
+        if note_reference:
+            note_id, note_title = note_reference
+            # Si le message contient une indication claire de génération
+            if re.search(r"(génère|générer|rédige|écrire|créer)\s+(un|du|le|ce)\s+(texte|contenu)", message_lower):
+                # Extraire le sujet après "sur" ou "à propos de"
+                subject_match = re.search(r"(sur|à propos de|concernant|au sujet de)\s+([^\.]+)", message_lower)
+                subject = subject_match.group(2).strip() if subject_match else "ce sujet"
+                
+                # Générer le texte avec l'API OpenRouter
+                generated_text = generate_text_for_note(subject)
+                
+                # Enregistrer le texte dans la note
+                try:
+                    note = Note.objects.get(id=note_id)
+                    # Vérifier que l'utilisateur a les droits
+                    if note.userOwner == user or Collaborateur.objects.filter(note=note, userCollab=user).exists():
+                        # Créer le TextNote
+                        TextNote.objects.create(
+                            note=note,
+                            texte=generated_text,
+                            userEditeur=user
+                        )
+                        return "generate_text", f"J'ai généré et ajouté le texte suivant à votre note '{note_title}':\n\n{generated_text[:150]}...\n\n(Texte complet disponible dans la note)"
+                    else:
+                        return "generate_text", f"Vous n'avez pas les droits pour modifier la note '{note_title}'."
+                except Note.DoesNotExist:
+                    return "generate_text", "Je n'ai pas trouvé la note spécifiée. Veuillez vérifier et réessayer."
+            else:
+                return "generate_text", f"Que souhaitez-vous que je génère comme texte pour la note '{note_title}'? Précisez un sujet."
+        else:
+            # Vérifier si le message précise qu'il veut générer du texte
+            if re.search(r"(génère|générer|rédige|écrire|créer)\s+(un|du|le|ce)\s+(texte|contenu)", message_lower):
+                # Récupérer les notes récentes
+                recent_notes = Note.objects.filter(
+                    Q(userOwner=user) | Q(collaborateur__userCollab=user)
+                ).distinct().order_by('-id')[:5]
+                
+                if not recent_notes.exists():
+                    return "generate_text", "Vous n'avez pas de notes disponibles. Créez d'abord une note."
+                
+                notes_list = "\n".join([f"• {n.titre} (cours: {n.cours.nom})" for n in recent_notes])
+                return "generate_text", f"Pour quelle note souhaitez-vous que je génère du texte? Voici vos notes récentes:\n{notes_list}"
+    
     # Listage des cours
     elif any(x in message_lower for x in ["liste de mes cours", "voir mes cours", "afficher mes cours", "quels sont mes cours"]):
         user_courses = Cours.objects.filter(user=user)
@@ -1292,6 +1345,51 @@ def detect_user_intent(user, message):
             return "list_notes", f"Pour quels cours souhaitez-vous voir les notes? Vos cours disponibles sont: {courses_list}"
     
     # Si aucune intention d'action n'est détectée
+    return None, None
+
+def extract_note_reference(message, user):
+    """
+    Extrait la référence à une note à partir du message
+    Retourne un tuple (note_id, note_title) ou (None, None)
+    """
+    # Extraire les mentions explicites de note
+    patterns = [
+        r"note[^\w]*[\"']?([^\"']+)[\"']?",
+        r"dans[^\w]*la note[^\w]*[\"']?([^\"']+)[\"']?",
+        r"pour[^\w]*la note[^\w]*[\"']?([^\"']+)[\"']?",
+    ]
+    
+    note_title = None
+    for pattern in patterns:
+        match = re.search(pattern, message, re.IGNORECASE)
+        if match:
+            note_title = match.group(1).strip()
+            break
+    
+    if note_title:
+        # Rechercher la note par titre
+        try:
+            # Rechercher dans les notes que je possède ou auxquelles je collabore
+            note = Note.objects.filter(
+                Q(titre__iexact=note_title, userOwner=user) | 
+                Q(titre__iexact=note_title, collaborateur__userCollab=user)
+            ).first()
+            
+            if note:
+                return note.id, note.titre
+            
+            # Recherche approximative si pas de correspondance exacte
+            notes = Note.objects.filter(
+                Q(userOwner=user) | 
+                Q(collaborateur__userCollab=user)
+            ).distinct()
+            
+            for note in notes:
+                if note_title.lower() in note.titre.lower() or note.titre.lower() in note_title.lower():
+                    return note.id, note.titre
+        except Exception:
+            pass
+    
     return None, None
 
 def extract_course_name(message):
@@ -1371,6 +1469,61 @@ def extract_note_title(message):
         return match.group(1).strip()
     
     return None
+
+def generate_text_for_note(subject):
+    """Génère du texte sur un sujet donné en utilisant l'API OpenRouter"""
+    try:
+        # Re-charger les variables d'environnement
+        load_dotenv()
+        
+        # Récupérer la clé API
+        api_key = os.environ.get('OPENROUTER_API_KEY')
+        
+        if not api_key:
+            return "Désolé, je ne peux pas générer de texte car ma clé API n'est pas configurée."
+        
+        # Prompt pour la génération de texte
+        prompt = f"""Génère un texte informatif et bien structuré sur le sujet suivant: {subject}.
+        
+Le texte doit être:
+- Informatif et précis
+- Bien structuré avec des paragraphes logiques
+- D'une longueur de 300 à 500 mots
+- Rédigé dans un style académique mais accessible
+- Sans introduction ni conclusion inutiles
+
+Si le sujet contient des aspects techniques, scientifiques ou mathématiques, inclus les informations pertinentes.
+"""
+        
+        # Préparer la requête
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json"
+        }
+        
+        data = {
+            "model": "deepseek/deepseek-r1:free",
+            "messages": [
+                {"role": "user", "content": prompt}
+            ]
+        }
+        
+        # Envoi de la requête
+        response = requests.post(
+            "https://openrouter.ai/api/v1/chat/completions",
+            headers=headers,
+            json=data
+        )
+        
+        # Traitement de la réponse
+        if response.status_code == 200:
+            result = response.json()
+            return result["choices"][0]["message"]["content"]
+        else:
+            return f"Désolé, je n'ai pas pu générer de texte. Erreur: {response.status_code}"
+            
+    except Exception as e:
+        return f"Désolé, je n'ai pas pu générer de texte. Erreur: {str(e)}"
 
 # Nouveau endpoint API pour Eden
 def eden_api(request):
