@@ -1,0 +1,92 @@
+{% extends "landing/dashboard.html" %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row">
+        <div class="col-md-12">
+            <h2 class="mb-4">Mon Profil</h2>
+            
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="alert alert-{{ message.tags }}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+            
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">Informations personnelles</h4>
+                </div>
+                <div class="card-body">
+                    <form method="post" action="{% url 'profile' %}">
+                        {% csrf_token %}
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Nom d'utilisateur</label>
+                                <input type="text" class="form-control" value="{{ user.username }}" readonly>
+                                <small class="text-muted">Le nom d'utilisateur ne peut pas être modifié.</small>
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-4">
+                                <label for="nom" class="form-label">Nom</label>
+                                <input type="text" class="form-control" id="nom" name="nom" value="{{ contact.nom }}" required>
+                            </div>
+                            <div class="col-md-4">
+                                <label for="postnom" class="form-label">Post-nom</label>
+                                <input type="text" class="form-control" id="postnom" name="postnom" value="{{ contact.postnom }}" required>
+                            </div>
+                            <div class="col-md-4">
+                                <label for="prenom" class="form-label">Prénom</label>
+                                <input type="text" class="form-control" id="prenom" name="prenom" value="{{ contact.prenom }}" required>
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-4">
+                                <label for="sexe" class="form-label">Sexe</label>
+                                <select class="form-select" id="sexe" name="sexe" required>
+                                    <option value="M" {% if contact.sexe == 'M' %}selected{% endif %}>Masculin</option>
+                                    <option value="F" {% if contact.sexe == 'F' %}selected{% endif %}>Féminin</option>
+                                </select>
+                            </div>
+                            <div class="col-md-8">
+                                <label for="tel" class="form-label">Téléphone</label>
+                                <input type="tel" class="form-control" id="tel" name="tel" value="{{ contact.tel }}" required>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="adresse" class="form-label">Adresse</label>
+                            <textarea class="form-control" id="adresse" name="adresse" rows="3" required>{{ contact.adresse }}</textarea>
+                        </div>
+                        
+                        <hr class="my-4">
+                        
+                        <h5 class="mb-3">Changer le mot de passe</h5>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="new_password" class="form-label">Nouveau mot de passe</label>
+                                <input type="password" class="form-control" id="new_password" name="new_password">
+                                <small class="text-muted">Laissez vide si vous ne souhaitez pas le changer</small>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="confirm_password" class="form-label">Confirmer le mot de passe</label>
+                                <input type="password" class="form-control" id="confirm_password" name="confirm_password">
+                            </div>
+                        </div>
+                        
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
+                            <a href="{% url 'dashboard' %}" class="btn btn-secondary me-md-2">Annuler</a>
+                            <button type="submit" class="btn btn-primary">Enregistrer les modifications</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

@@ -2067,3 +2067,59 @@ def delete_ocrnote(request, ocr_id):
     # Pas de page de confirmation dédiée, on redirige
     return redirect('note_detail', note_id=note.id)
 
+def profile(request):
+    """
+    Vue pour afficher et mettre à jour le profil utilisateur.
+    Permet de modifier toutes les informations sauf le nom d'utilisateur.
+    """
+    user = get_current_user(request)
+    if not user:
+        messages.error(request, "Veuillez vous connecter pour accéder à votre profil.")
+        return redirect('login')
+        
+    try:
+        contact = user.contact
+        
+        if request.method == 'POST':
+            # Récupération des données du formulaire
+            nom = request.POST.get('nom')
+            postnom = request.POST.get('postnom')
+            prenom = request.POST.get('prenom')
+            sexe = request.POST.get('sexe')
+            adresse = request.POST.get('adresse')
+            tel = request.POST.get('tel')
+            
+            # Vérification si le numéro de téléphone existe déjà
+            if Contact.objects.filter(tel=tel).exclude(id=contact.id).exists():
+                messages.error(request, "Ce numéro de téléphone est déjà utilisé.")
+                return render(request, 'landing/profile.html', {'user': user, 'contact': contact, 'user_contact': contact})
+            
+            # Mise à jour des informations du contact
+            contact.nom = nom
+            contact.postnom = postnom
+            contact.prenom = prenom
+            contact.sexe = sexe
+            contact.adresse = adresse
+            contact.tel = tel
+            contact.save()
+            
+            # Mise à jour du mot de passe si fourni
+            new_password = request.POST.get('new_password')
+            if new_password:
+                confirm_password = request.POST.get('confirm_password')
+                if new_password == confirm_password:
+                    user.set_password(new_password)
+                    user.save()
+                    messages.success(request, "Mot de passe mis à jour avec succès.")
+                else:
+                    messages.error(request, "Les mots de passe ne correspondent pas.")
+            
+            messages.success(request, "Profil mis à jour avec succès.")
+            return redirect('profile')
+        
+        return render(request, 'landing/profile.html', {'user': user, 'contact': contact, 'user_contact': contact})
+        
+    except Exception as e:
+        messages.error(request, f"Une erreur s'est produite: {str(e)}")
+        return redirect('dashboard')
+
