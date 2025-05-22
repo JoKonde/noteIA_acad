@@ -1,0 +1,164 @@
+@startuml NoteIA
+
+' Styles et configuration
+skinparam classAttributeIconSize 0
+skinparam Monochrome true
+skinparam linetype ortho
+skinparam shadowing false
+
+title "Modèle de données NoteIA"
+
+' Entités principales
+class Contact {
+  +nom: CharField
+  +postnom: CharField
+  +prenom: CharField
+  +sexe: CharField
+  +adresse: TextField
+  +tel: CharField
+  +date: DateTimeField
+}
+
+class CustomUser {
+  +username: CharField
+  +password_encrypted: BinaryField
+  +date: DateTimeField
+  +set_password(raw_password)
+  +check_password(raw_password)
+}
+
+class Cours {
+  +nom: CharField
+  +description: TextField
+  +date_creation: DateTimeField
+}
+
+class Note {
+  +titre: CharField
+  +date: DateTimeField
+}
+
+' Types de notes
+class TextNote {
+  +texte: TextField
+  +date: DateTimeField
+}
+
+class ImageNote {
+  +path: CharField
+  +date: DateTimeField
+}
+
+class PdfNote {
+  +path: CharField
+  +date: DateTimeField
+}
+
+class AudioNote {
+  +path: CharField
+  +titre: CharField
+  +duree: IntegerField
+  +date: DateTimeField
+}
+
+class VideoNote {
+  +path: CharField
+  +titre: CharField
+  +duree: IntegerField
+  +thumbnail: CharField
+  +date: DateTimeField
+}
+
+class OcrNote {
+  +image_path: CharField
+  +texte_extrait: TextField
+  +date: DateTimeField
+}
+
+class TextNoteResume {
+  +uuid: UUIDField
+  +texte: TextField
+  +date: DateTimeField
+  +version: IntegerField
+}
+
+class QuizNote {
+  +uuid: UUIDField
+  +contenu: TextField
+  +questions: TextField
+  +date: DateTimeField
+  +version: IntegerField
+}
+
+class Collaborateur {
+  +date: DateTimeField
+}
+
+' Modèles pour l'assistant Eden
+class EdenConversation {
+  +date_creation: DateTimeField
+  +derniere_interaction: DateTimeField
+}
+
+class EdenMessage {
+  +est_assistant: BooleanField
+  +contenu: TextField
+  +date: DateTimeField
+}
+
+' Modèles pour la gestion des API d'IA
+class AIProvider {
+  +nom: CharField
+  +code: CharField
+  +description: TextField
+  +url_api: URLField
+  +est_actif: BooleanField
+}
+
+class APIKey {
+  +key_encrypted: BinaryField
+  +date_ajout: DateTimeField
+  +est_active: BooleanField
+  +set_key(raw_key)
+  +get_key()
+}
+
+class AIModel {
+  +nom: CharField
+  +model_id: CharField
+  +description: TextField
+  +est_gratuit: BooleanField
+  +est_actif: BooleanField
+  +est_defaut: BooleanField
+  +ordre: IntegerField
+}
+
+' Relations
+CustomUser "1" -- "1" Contact : possède >
+Note "N" -- "1" CustomUser : userOwner >
+Note "N" -- "1" Cours : appartient à >
+TextNote "N" -- "1" Note : attaché à >
+TextNote "N" -- "1" CustomUser : userEditeur >
+ImageNote "N" -- "1" Note : attaché à >
+ImageNote "N" -- "1" CustomUser : userEditeur >
+PdfNote "N" -- "1" Note : attaché à >
+PdfNote "N" -- "1" CustomUser : userEditeur >
+AudioNote "N" -- "1" Note : attaché à >
+AudioNote "N" -- "1" CustomUser : userEditeur >
+VideoNote "N" -- "1" Note : attaché à >
+VideoNote "N" -- "1" CustomUser : userEditeur >
+OcrNote "N" -- "1" Note : attaché à >
+OcrNote "N" -- "1" CustomUser : userEditeur >
+TextNoteResume "N" -- "1" Note : résume >
+TextNoteResume "N" -- "1" CustomUser : userEditeur >
+QuizNote "N" -- "1" Note : quiz pour >
+QuizNote "N" -- "1" CustomUser : userEditeur >
+Collaborateur "N" -- "1" Note : collabore à >
+Collaborateur "N" -- "1" CustomUser : userCollab >
+Cours "N" -- "1" CustomUser : user >
+EdenConversation "1" -- "1" CustomUser : user >
+EdenMessage "N" -- "1" EdenConversation : conversation >
+APIKey "N" -- "1" AIProvider : provider >
+AIModel "N" -- "1" AIProvider : provider >
+
+@enduml 
